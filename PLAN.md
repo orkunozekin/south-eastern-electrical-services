@@ -100,7 +100,7 @@ Env: `PLUNK_API_KEY`, `BOOKING_NOTIFY_EMAIL`
 
 - [ ] Firebase project + service account
 - [ ] Firebase web config (client Auth)
-- [ ] Plunk API key, from address, and notify address
+- [ ] Plunk API key and notify address (from address later, after domain verify)
 - [ ] Admin user in Firebase Auth
 
 ## Out of scope (v1)

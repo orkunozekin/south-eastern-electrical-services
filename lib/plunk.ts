@@ -2,12 +2,9 @@ import type { Booking } from "@/lib/booking";
 
 const PLUNK_SEND_URL = "https://next-api.useplunk.com/v1/send";
 
+/** Ready to hit Plunk’s API (from address still needed for real delivery). */
 export function isPlunkConfigured(): boolean {
-  return Boolean(
-    process.env.PLUNK_API_KEY &&
-    process.env.BOOKING_NOTIFY_EMAIL &&
-    process.env.PLUNK_FROM_EMAIL,
-  );
+  return Boolean(process.env.PLUNK_API_KEY && process.env.BOOKING_NOTIFY_EMAIL);
 }
 
 function formatPhone(phone: string): string {
@@ -36,6 +33,32 @@ function resolveRecipients(notifyEmails?: string[]): string[] {
   return [...new Set([...fromSettings, ...fromEnv])];
 }
 
+function shouldLogToConsole(fromEmail: string | undefined): boolean {
+  if (process.env.BOOKING_NOTIFY_CONSOLE === "true") return true;
+  if (process.env.BOOKING_NOTIFY_CONSOLE === "false") return false;
+  // Dev without a verified sender: print instead of calling Plunk.
+  return process.env.NODE_ENV === "development" && !fromEmail;
+}
+
+function logBookingNotification(options: {
+  to: string[];
+  subject: string;
+  booking: Booking;
+  whenLabel: string;
+  reason: string;
+}): void {
+  const { to, subject, booking, whenLabel, reason } = options;
+  console.log("\n========== Booking notification (console) ==========");
+  console.log(`Reason:  ${reason}`);
+  console.log(`To:      ${to.length ? to.join(", ") : "(none set)"}`);
+  console.log(`Subject: ${subject}`);
+  console.log(`Name:    ${booking.name}`);
+  console.log(`Phone:   ${formatPhone(booking.phone)}`);
+  console.log(`When:    ${whenLabel}`);
+  console.log(`ID:      ${booking.id}`);
+  console.log("====================================================\n");
+}
+
 export type BookingNotificationInput = {
   booking: Booking;
   /** Human-readable time already formatted in business timezone. */
@@ -43,26 +66,43 @@ export type BookingNotificationInput = {
   notifyEmails?: string[];
 };
 
+export type BookingNotificationResult = "sent" | "skipped" | "logged";
+
 /**
  * Notifies the business inbox of a new callback booking.
- * Throws on API failure so callers can log; returns skipped if not configured.
+ *
+ * In development without `PLUNK_FROM_EMAIL`, logs to the server console instead
+ * of calling Plunk. Force console anytime with `BOOKING_NOTIFY_CONSOLE=true`.
  */
 export async function sendBookingNotification(
   input: BookingNotificationInput,
-): Promise<"sent" | "skipped"> {
+): Promise<BookingNotificationResult> {
   const apiKey = process.env.PLUNK_API_KEY;
-  const fromEmail = process.env.PLUNK_FROM_EMAIL;
+  const fromEmail = process.env.PLUNK_FROM_EMAIL?.trim();
   const recipients = resolveRecipients(input.notifyEmails);
+  const { booking, whenLabel } = input;
+  const subject = `New callback booking: ${booking.name} · ${whenLabel}`;
 
-  if (!apiKey || !fromEmail || recipients.length === 0) {
+  if (shouldLogToConsole(fromEmail)) {
+    logBookingNotification({
+      to: recipients,
+      subject,
+      booking,
+      whenLabel,
+      reason: fromEmail
+        ? "BOOKING_NOTIFY_CONSOLE=true"
+        : "development mode (no PLUNK_FROM_EMAIL)",
+    });
+    return "logged";
+  }
+
+  if (!apiKey || recipients.length === 0) {
     console.warn(
-      "[plunk] Skipping booking notification. Set PLUNK_API_KEY, PLUNK_FROM_EMAIL, and BOOKING_NOTIFY_EMAIL.",
+      "[plunk] Skipping booking notification. Set PLUNK_API_KEY and BOOKING_NOTIFY_EMAIL.",
     );
     return "skipped";
   }
 
-  const { booking, whenLabel } = input;
-  const subject = `New callback booking: ${booking.name} · ${whenLabel}`;
   const body = `
     <h2>New callback booking</h2>
     <p><strong>Name:</strong> ${escapeHtml(booking.name)}</p>
@@ -71,6 +111,20 @@ export async function sendBookingNotification(
     <p><strong>Booking ID:</strong> ${escapeHtml(booking.id)}</p>
   `;
 
+  const payload: Record<string, unknown> = {
+    to: recipients.length === 1 ? recipients[0] : recipients,
+    subject,
+    body,
+    subscribed: false,
+  };
+
+  if (fromEmail) {
+    payload.from = {
+      name: "South Eastern Electrical Services",
+      email: fromEmail,
+    };
+  }
+
   const response = await fetch(PLUNK_SEND_URL, {
     method: "POST",
     headers: {
@@ -78,16 +132,7 @@ export async function sendBookingNotification(
       "Content-Type": "application/json",
       "Idempotency-Key": `booking-${booking.id}`,
     },
-    body: JSON.stringify({
-      to: recipients.length === 1 ? recipients[0] : recipients,
-      subject,
-      body,
-      subscribed: false,
-      from: {
-        name: "South Eastern Electrical Services",
-        email: fromEmail,
-      },
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {

@@ -128,7 +128,7 @@ export function BookingWizard({
             setPhone("");
             setFormError(null);
           }}
-          className="text-amber hover:text-amber-hot mt-8 text-sm font-semibold tracking-wide"
+          className="mt-8 cursor-pointer text-sm font-semibold tracking-wide text-amber hover:text-amber-hot"
         >
           Book another time
         </button>
@@ -159,7 +159,7 @@ export function BookingWizard({
                 key={date}
                 type="button"
                 onClick={() => selectDate(date)}
-                className={`min-w-[5.5rem] shrink-0 px-3 py-3 text-left transition ${
+                className={`min-w-[5.5rem] shrink-0 cursor-pointer px-3 py-3 text-left transition ${
                   active
                     ? "bg-amber text-navy-deep"
                     : "bg-white/10 text-white hover:bg-white/15"
@@ -205,9 +205,9 @@ export function BookingWizard({
                 key={slot.slotId}
                 type="button"
                 onClick={() => setSelectedSlot(slot)}
-                className={`px-3 py-3 text-sm font-semibold tracking-wide transition ${
+                className={`cursor-pointer px-3 py-3 text-sm font-semibold tracking-wide transition ${
                   active
-                    ? "bg-amber text-navy-deep scale-[1.03] shadow-[0_0_0_2px_color-mix(in_srgb,var(--amber-hot)_80%,transparent)]"
+                    ? "scale-[1.03] bg-amber text-navy-deep shadow-[0_0_0_2px_color-mix(in_srgb,var(--amber-hot)_80%,transparent)]"
                     : "bg-white/10 text-white hover:bg-white/15"
                 }`}
               >
@@ -266,7 +266,7 @@ export function BookingWizard({
           <button
             type="submit"
             disabled={pendingSubmit}
-            className="bg-amber text-navy-deep hover:bg-amber-hot px-6 py-3 text-base font-semibold tracking-wide transition disabled:cursor-not-allowed disabled:opacity-60"
+            className="cursor-pointer bg-amber px-6 py-3 text-base font-semibold tracking-wide text-navy-deep transition hover:bg-amber-hot disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pendingSubmit ? "Booking…" : "Confirm callback"}
           </button>
