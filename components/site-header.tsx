@@ -39,7 +39,7 @@ export function SiteHeader() {
         <Link
           href="/"
           onClick={close}
-          className="font-display relative z-40 text-sm font-semibold tracking-[0.14em] text-white/90 uppercase transition hover:text-amber"
+          className="font-display hover:text-amber relative z-40 text-sm font-semibold tracking-[0.14em] text-white/90 uppercase transition"
         >
           SEE
         </Link>
@@ -53,12 +53,12 @@ export function SiteHeader() {
               className="group relative text-sm font-medium tracking-wide text-white/80 transition hover:text-white"
             >
               {link.label}
-              <span className="absolute -bottom-1 left-0 h-px w-full origin-left scale-x-0 bg-amber transition-transform duration-300 group-hover:scale-x-100" />
+              <span className="bg-amber absolute -bottom-1 left-0 h-px w-full origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100" />
             </Link>
           ))}
           <Link
             href="/book"
-            className="bg-amber px-4 py-2 text-sm font-semibold tracking-wide text-navy-deep transition hover:bg-amber-hot"
+            className="bg-amber text-navy-deep hover:bg-amber-hot px-4 py-2 text-sm font-semibold tracking-wide transition"
           >
             Book a call
           </Link>
@@ -96,7 +96,7 @@ export function SiteHeader() {
 
       {/* Mobile panel backdrop */}
       <div
-        className={`fixed inset-0 z-20 bg-navy-deep/60 backdrop-blur-[2px] transition-opacity duration-300 md:hidden ${
+        className={`bg-navy-deep/60 fixed inset-0 z-20 backdrop-blur-[2px] transition-opacity duration-300 md:hidden ${
           open
             ? "pointer-events-auto opacity-100"
             : "pointer-events-none opacity-0"
@@ -108,7 +108,7 @@ export function SiteHeader() {
       {/* Mobile panel */}
       <div
         id={menuId}
-        className={`absolute inset-x-0 top-0 z-30 origin-top overflow-hidden bg-navy-deep/95 shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur-md transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:hidden ${
+        className={`bg-navy-deep/95 absolute inset-x-0 top-0 z-30 origin-top overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur-md transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:hidden ${
           open
             ? "translate-y-0 opacity-100"
             : "pointer-events-none -translate-y-3 opacity-0"
@@ -122,10 +122,8 @@ export function SiteHeader() {
               href={link.href}
               onClick={close}
               style={{ transitionDelay: open ? `${80 + index * 40}ms` : "0ms" }}
-              className={`border-b border-white/10 py-4 text-lg font-medium tracking-wide text-white/90 transition-all duration-300 hover:text-amber ${
-                open
-                  ? "translate-y-0 opacity-100"
-                  : "translate-y-2 opacity-0"
+              className={`hover:text-amber border-b border-white/10 py-4 text-lg font-medium tracking-wide text-white/90 transition-all duration-300 ${
+                open ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
               }`}
             >
               {link.label}
@@ -135,7 +133,7 @@ export function SiteHeader() {
             href="/book"
             onClick={close}
             style={{ transitionDelay: open ? "200ms" : "0ms" }}
-            className={`mt-5 inline-flex w-full items-center justify-center bg-amber px-4 py-3 text-base font-semibold tracking-wide text-navy-deep transition-all duration-300 hover:bg-amber-hot ${
+            className={`bg-amber text-navy-deep hover:bg-amber-hot mt-5 inline-flex w-full items-center justify-center px-4 py-3 text-base font-semibold tracking-wide transition-all duration-300 ${
               open ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
             }`}
           >
