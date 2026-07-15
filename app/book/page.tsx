@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 
+import { getBookingPageData } from "@/app/actions/booking";
+import { BookingWizard } from "@/components/booking-wizard";
+
 export const metadata: Metadata = {
   title: "Book a callback",
   description: "Schedule a phone call with South Eastern Electrical Services.",
 };
 
-/** Placeholder until the booking calendar UI ships. */
-export default function BookPage() {
+export default async function BookPage() {
+  const { dates, timezone, configured } = await getBookingPageData();
+
   return (
     <section className="bg-navy px-5 pt-28 pb-20 md:px-8 md:pt-36 md:pb-28">
       <div className="mx-auto max-w-6xl">
@@ -14,9 +18,16 @@ export default function BookPage() {
           Book a callback
         </h1>
         <p className="text-mist/85 mt-4 max-w-lg text-lg leading-relaxed">
-          The scheduling calendar is next. You’ll pick a time, leave your name
-          and phone number, and we’ll call you.
+          Pick a day and time. Leave your name and number — we’ll call you.
         </p>
+
+        <div className="mt-12 max-w-3xl">
+          <BookingWizard
+            dates={dates}
+            timezone={timezone}
+            configured={configured}
+          />
+        </div>
       </div>
     </section>
   );

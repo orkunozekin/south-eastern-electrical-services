@@ -1,4 +1,4 @@
-import { addMinutes, getDay } from "date-fns";
+import { addDays, addMinutes, getDay } from "date-fns";
 import { formatInTimeZone, fromZonedTime, toZonedTime } from "date-fns-tz";
 
 import { isDayOfWeek } from "./defaults";
@@ -115,4 +115,31 @@ export function getAvailableSlots(options: {
     if (slot.startsAt <= now) return false;
     return true;
   });
+}
+
+/**
+ * Upcoming calendar dates (YYYY-MM-DD in business timezone) that have
+ * default weekly hours. Overrides can still close a day when slots load.
+ */
+export function getBookableDateStrings(
+  settings: BookingSettings,
+  daysAhead = 14,
+  now = new Date(),
+): string[] {
+  const dates: string[] = [];
+  const today = formatInTimeZone(now, settings.timezone, "yyyy-MM-dd");
+  const startNoon = fromZonedTime(`${today}T12:00:00`, settings.timezone);
+
+  for (let offset = 0; offset < daysAhead; offset += 1) {
+    const probe = addDays(startNoon, offset);
+    const date = formatInTimeZone(probe, settings.timezone, "yyyy-MM-dd");
+    const day = getDay(toZonedTime(probe, settings.timezone));
+    if (!isDayOfWeek(day)) continue;
+    const hours = settings.weeklyHours[day];
+    if (hours && hours.length > 0) {
+      dates.push(date);
+    }
+  }
+
+  return dates;
 }

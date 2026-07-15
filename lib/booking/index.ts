@@ -3,7 +3,12 @@ export {
   DEFAULT_BOOKING_SETTINGS,
   SETTINGS_BOOKING_DOC,
 } from "./defaults";
-export { getAvailableSlots, generateDaySlots, slotIdForStart } from "./slots";
+export {
+  getAvailableSlots,
+  generateDaySlots,
+  getBookableDateStrings,
+  slotIdForStart,
+} from "./slots";
 export {
   BookingError,
   cancelBooking,
