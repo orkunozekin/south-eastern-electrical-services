@@ -7,7 +7,7 @@ Living implementation plan. Check boxes as work lands. Update this file as we bu
 ## Progress
 
 - [x] Scaffold Next.js (user: `create-next-app` — TypeScript, Tailwind, ESLint, App Router)
-- [ ] Add Prettier (`eslint-config-prettier`, `prettier-plugin-tailwindcss`); `format` / `format:check` scripts
+- [x] Add Prettier (`eslint-config-prettier`, `prettier-plugin-tailwindcss`); `format` / `format:check` scripts
 - [ ] Wire Firebase client (Auth) + Admin SDK + env template
 - [ ] Define Firestore model + Admin helpers + transaction-safe booking write
 - [ ] Brand-first marketing pages (home, services/about, CTA to book)
@@ -20,15 +20,15 @@ Living implementation plan. Check boxes as work lands. Update this file as we bu
 
 ## Stack (confirmed)
 
-| Layer | Choice | Role |
-|-------|--------|------|
-| App | Next.js (App Router) + TypeScript | Marketing pages + API routes |
-| Styling | Tailwind CSS | Utility styling for marketing + admin |
-| Lint / format | ESLint + Prettier | Lint on save/CI; consistent formatting |
-| DB | Firestore | Bookings, availability overrides, settings |
-| Auth | Firebase Auth | **Admin only** (customers are guests) |
-| Email | Plunk | Notify business when a slot is booked |
-| Hosting | Vercel (typical for Next.js) | Deploy |
+| Layer         | Choice                            | Role                                       |
+| ------------- | --------------------------------- | ------------------------------------------ |
+| App           | Next.js (App Router) + TypeScript | Marketing pages + API routes               |
+| Styling       | Tailwind CSS                      | Utility styling for marketing + admin      |
+| Lint / format | ESLint + Prettier                 | Lint on save/CI; consistent formatting     |
+| DB            | Firestore                         | Bookings, availability overrides, settings |
+| Auth          | Firebase Auth                     | **Admin only** (customers are guests)      |
+| Email         | Plunk                             | Notify business when a slot is booked      |
+| Hosting       | Vercel (typical for Next.js)      | Deploy                                     |
 
 No customer accounts. Booking form: **name + phone** (+ selected date/time). Emails go **only to the business**.
 
@@ -56,6 +56,7 @@ flowchart LR
 - Transaction or `slots/{slotId}` with `booked: true` to prevent double-booking
 
 **Security:**
+
 - Public booking writes only via Next.js server (Admin SDK) — no client Firestore writes
 - Admin UI uses Auth; privileged ops via authenticated API routes / Admin SDK after session verify
 
