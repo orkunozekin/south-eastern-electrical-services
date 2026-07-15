@@ -1,65 +1,131 @@
 import Image from "next/image";
+import Link from "next/link";
 
-export default function Home() {
+import { BookCta } from "@/components/book-cta";
+
+const services = [
+  {
+    title: "Residential",
+    copy: "Panels, outlets, lighting, EV chargers, and everyday troubleshooting for your home.",
+  },
+  {
+    title: "Commercial",
+    copy: "Tenant fit-outs, office upgrades, and reliable power for small businesses.",
+  },
+  {
+    title: "Repairs & upgrades",
+    copy: "Safety checks, code updates, and lasting fixes when something’s not right.",
+  },
+] as const;
+
+const HERO_IMAGE =
+  "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=2400&q=80";
+
+export default function HomePage() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex w-full max-w-3xl flex-1 flex-col items-center justify-between bg-white px-16 py-32 sm:items-start dark:bg-black">
+    <>
+      <section className="bg-navy-deep relative flex min-h-[100svh] items-end overflow-hidden">
         <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
+          src={HERO_IMAGE}
+          alt="Electrician working on a circuit panel"
+          fill
           priority
+          className="animate-hero-zoom object-cover object-center"
+          sizes="100vw"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl leading-10 font-semibold tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+        <div
+          aria-hidden
+          className="from-navy-deep via-navy-deep/75 to-navy/40 absolute inset-0 bg-gradient-to-t"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,color-mix(in_srgb,var(--amber)_18%,transparent),transparent_55%)]"
+        />
+
+        <div className="relative z-10 mx-auto w-full max-w-6xl px-5 pt-32 pb-16 md:px-8 md:pb-24">
+          <p className="animate-hero-rise font-display text-5xl leading-[0.95] font-bold tracking-tight text-white uppercase sm:text-6xl md:text-7xl lg:text-8xl">
+            South Eastern
+            <br />
+            Electrical
+            <br />
+            <span className="text-amber">Services</span>
           </p>
+          <p className="animate-hero-rise-delay text-mist/90 mt-6 max-w-md text-lg leading-relaxed md:text-xl">
+            Dependable electrical work for homes and businesses — start with a
+            phone call.
+          </p>
+          <div className="animate-hero-rise-delay-2 mt-8 flex flex-wrap gap-4">
+            <Link
+              href="/book"
+              className="bg-amber text-navy-deep hover:bg-amber-hot px-6 py-3 text-base font-semibold tracking-wide transition"
+            >
+              Book a callback
+            </Link>
+            <Link
+              href="/services"
+              className="hover:border-amber hover:text-amber border border-white/35 px-6 py-3 text-base font-semibold tracking-wide text-white transition"
+            >
+              View services
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="bg-foreground text-background flex h-12 w-full items-center justify-center gap-2 rounded-full px-5 transition-colors hover:bg-[#383838] md:w-[158px] dark:hover:bg-[#ccc]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      </section>
+
+      <section className="bg-paper px-5 py-20 md:px-8 md:py-28">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="font-display text-navy text-3xl font-semibold tracking-tight uppercase md:text-4xl">
+            What we do
+          </h2>
+          <p className="text-slate mt-3 max-w-xl text-lg">
+            From a single outlet to a full panel upgrade — we keep the work
+            clear, safe, and on schedule.
+          </p>
+          <ul className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+            {services.map((service) => (
+              <li key={service.title}>
+                <h3 className="font-display text-navy text-2xl font-semibold tracking-tight uppercase">
+                  {service.title}
+                </h3>
+                <p className="text-slate mt-3 text-base leading-relaxed">
+                  {service.copy}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/services"
+            className="text-navy decoration-amber hover:text-charcoal mt-10 inline-block text-sm font-semibold tracking-wide underline decoration-2 underline-offset-4"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] md:w-[158px] dark:border-white/[.145] dark:hover:bg-[#1a1a1a]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            Explore all services
+          </Link>
         </div>
-      </main>
-    </div>
+      </section>
+
+      <section className="bg-mist px-5 py-20 md:px-8 md:py-24">
+        <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:items-center md:gap-16">
+          <div>
+            <h2 className="font-display text-navy text-3xl font-semibold tracking-tight uppercase md:text-4xl">
+              Straight talk. Solid work.
+            </h2>
+            <p className="text-slate mt-4 text-lg leading-relaxed">
+              We schedule a phone call first so we understand the job before
+              anyone shows up at your door. No pressure — just a clear next
+              step.
+            </p>
+          </div>
+          <div className="border-amber border-l-4 pl-6 md:pl-8">
+            <p className="font-display text-navy text-xl font-semibold tracking-tight uppercase md:text-2xl">
+              Licensed · Insured · Southeast focused
+            </p>
+            <p className="text-slate mt-3 text-base leading-relaxed">
+              Built for homeowners and business owners who want electrical work
+              done right the first time.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <BookCta />
+    </>
   );
 }
