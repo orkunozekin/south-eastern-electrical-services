@@ -8,14 +8,44 @@ import {
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
+function normalizePrivateKey(raw: string): string {
+  let key = raw.trim();
+
+  // Tolerate a trailing comma copied from service-account JSON.
+  if (key.endsWith(",")) {
+    key = key.slice(0, -1).trim();
+  }
+
+  // Strip one or more layers of wrapping quotes.
+  while (
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'"))
+  ) {
+    key = key.slice(1, -1).trim();
+  }
+
+  // JSON / .env often store PEM newlines as the two-char sequence \n.
+  key = key.replace(/\\n/g, "\n");
+
+  return key.trim();
+}
+
 function getServiceAccount(): ServiceAccount {
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY
+    ? normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY)
+    : undefined;
 
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
       "Missing Firebase Admin credentials. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.",
+    );
+  }
+
+  if (!privateKey.includes("BEGIN PRIVATE KEY")) {
+    throw new Error(
+      'FIREBASE_PRIVATE_KEY looks invalid. Use the PEM from the service account JSON, wrapped in double quotes, with \\n for newlines — and no trailing comma.',
     );
   }
 

@@ -105,9 +105,6 @@ export function AdminSettingsForm({ settings }: AdminSettingsFormProps) {
           placeholder="owner@example.com"
           className="border-navy/20 focus:border-amber mt-2 w-full border bg-white px-4 py-3 outline-none"
         />
-        <span className="text-slate mt-1 block text-xs">
-          Also sent to BOOKING_NOTIFY_EMAIL from env when set.
-        </span>
       </label>
 
       {error && <p className="text-sm text-red-700">{error}</p>}
