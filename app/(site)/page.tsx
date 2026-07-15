@@ -2,21 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { BookCta } from "@/components/book-cta";
-
-const services = [
-  {
-    title: "Residential",
-    copy: "Panels, outlets, lighting, EV chargers, and everyday troubleshooting for your home.",
-  },
-  {
-    title: "Commercial",
-    copy: "Tenant fit-outs, office upgrades, and reliable power for small businesses.",
-  },
-  {
-    title: "Repairs & upgrades",
-    copy: "Safety checks, code updates, and lasting fixes when something’s not right.",
-  },
-] as const;
+import { FEATURED_SERVICES, VALUES } from "@/lib/content";
 
 const HERO_IMAGE =
   "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=2400&q=80";
@@ -51,8 +37,8 @@ export default function HomePage() {
             <span className="text-amber">Services</span>
           </p>
           <p className="animate-hero-rise-delay text-mist/90 mt-6 max-w-md text-lg leading-relaxed md:text-xl">
-            Dependable electrical work for homes and businesses — start with a
-            phone call.
+            Safe, reliable, and affordable electrical work — start with a phone
+            call.
           </p>
           <div className="animate-hero-rise-delay-2 mt-8 flex flex-wrap gap-4">
             <Link
@@ -77,11 +63,10 @@ export default function HomePage() {
             What we do
           </h2>
           <p className="text-slate mt-3 max-w-xl text-lg">
-            From a single outlet to a full panel upgrade — we keep the work
-            clear, safe, and on schedule.
+            From panel upgrades to generators — clear work, done safely.
           </p>
           <ul className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
-            {services.map((service) => (
+            {FEATURED_SERVICES.map((service) => (
               <li key={service.title}>
                 <h3 className="font-display text-navy text-2xl font-semibold tracking-tight uppercase">
                   {service.title}
@@ -105,21 +90,20 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:items-center md:gap-16">
           <div>
             <h2 className="font-display text-navy text-3xl font-semibold tracking-tight uppercase md:text-4xl">
-              Straight talk. Solid work.
+              Built on trust
             </h2>
             <p className="text-slate mt-4 text-lg leading-relaxed">
               We schedule a phone call first so we understand the job before
-              anyone shows up at your door. No pressure — just a clear next
-              step.
+              anyone shows up. Service, safety, and integrity guide every
+              project.
             </p>
           </div>
           <div className="border-amber border-l-4 pl-6 md:pl-8">
             <p className="font-display text-navy text-xl font-semibold tracking-tight uppercase md:text-2xl">
-              Licensed · Insured · Southeast focused
+              {VALUES.slice(0, 3).join(" · ")}
             </p>
             <p className="text-slate mt-3 text-base leading-relaxed">
-              Built for homeowners and business owners who want electrical work
-              done right the first time.
+              {VALUES.slice(3).join(" · ")}
             </p>
           </div>
         </div>

@@ -11,8 +11,8 @@ export function SiteFooter() {
             Electrical Services
           </p>
           <p className="text-mist/70 mt-3 max-w-sm text-sm leading-relaxed">
-            Licensed electrical work for homes and businesses across the
-            Southeast. Book a phone call to discuss your project.
+            A trusted partner for safe, reliable, and affordable electrical
+            work. Book a phone call to discuss your project.
           </p>
         </div>
         <div className="flex flex-col gap-3 text-sm md:items-end">
