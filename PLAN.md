@@ -9,7 +9,7 @@ Living implementation plan. Check boxes as work lands. Update this file as we bu
 - [x] Scaffold Next.js (user: `create-next-app` — TypeScript, Tailwind, ESLint, App Router)
 - [x] Add Prettier (`eslint-config-prettier`, `prettier-plugin-tailwindcss`); `format` / `format:check` scripts
 - [x] Wire Firebase client (Auth) + Admin SDK + env template
-- [ ] Define Firestore model + Admin helpers + transaction-safe booking write
+- [x] Define Firestore model + Admin helpers + transaction-safe booking write
 - [ ] Brand-first marketing pages (home, services/about, CTA to book)
 - [ ] Public booking UI: day picker, slots, name + phone, confirmation
 - [ ] Plunk business-only email on successful booking
