@@ -33,11 +33,19 @@ function resolveRecipients(notifyEmails?: string[]): string[] {
   return [...new Set([...fromSettings, ...fromEnv])];
 }
 
-function shouldLogToConsole(fromEmail: string | undefined): boolean {
+function shouldLogToConsole(): boolean {
   if (process.env.BOOKING_NOTIFY_CONSOLE === "true") return true;
   if (process.env.BOOKING_NOTIFY_CONSOLE === "false") return false;
-  // Dev without a verified sender: print instead of calling Plunk.
-  return process.env.NODE_ENV === "development" && !fromEmail;
+  // next dev / non-production builds
+  return process.env.NODE_ENV !== "production";
+}
+
+function canSendViaPlunk(
+  apiKey: string | undefined,
+  fromEmail: string | undefined,
+  recipients: string[],
+): apiKey is string {
+  return Boolean(apiKey && fromEmail && recipients.length > 0);
 }
 
 function logBookingNotification(options: {
@@ -48,15 +56,21 @@ function logBookingNotification(options: {
   reason: string;
 }): void {
   const { to, subject, booking, whenLabel, reason } = options;
-  console.log("\n========== Booking notification (console) ==========");
-  console.log(`Reason:  ${reason}`);
-  console.log(`To:      ${to.length ? to.join(", ") : "(none set)"}`);
-  console.log(`Subject: ${subject}`);
-  console.log(`Name:    ${booking.name}`);
-  console.log(`Phone:   ${formatPhone(booking.phone)}`);
-  console.log(`When:    ${whenLabel}`);
-  console.log(`ID:      ${booking.id}`);
-  console.log("====================================================\n");
+  // stderr is more reliable than console.log for Next.js server actions
+  const lines = [
+    "",
+    "========== Booking notification (console) ==========",
+    `Reason:  ${reason}`,
+    `To:      ${to.length ? to.join(", ") : "(none set)"}`,
+    `Subject: ${subject}`,
+    `Name:    ${booking.name}`,
+    `Phone:   ${formatPhone(booking.phone)}`,
+    `When:    ${whenLabel}`,
+    `ID:      ${booking.id}`,
+    "====================================================",
+    "",
+  ];
+  process.stderr.write(`${lines.join("\n")}\n`);
 }
 
 export type BookingNotificationInput = {
@@ -71,8 +85,8 @@ export type BookingNotificationResult = "sent" | "skipped" | "logged";
 /**
  * Notifies the business inbox of a new callback booking.
  *
- * In development without `PLUNK_FROM_EMAIL`, logs to the server console instead
- * of calling Plunk. Force console anytime with `BOOKING_NOTIFY_CONSOLE=true`.
+ * In development, always prints to the **server** terminal (where `npm run
+ * dev` runs), not the browser console. Force with `BOOKING_NOTIFY_CONSOLE=true`.
  */
 export async function sendBookingNotification(
   input: BookingNotificationInput,
@@ -83,22 +97,25 @@ export async function sendBookingNotification(
   const { booking, whenLabel } = input;
   const subject = `New callback booking: ${booking.name} · ${whenLabel}`;
 
-  if (shouldLogToConsole(fromEmail)) {
+  const logToConsole = shouldLogToConsole();
+  if (logToConsole) {
     logBookingNotification({
       to: recipients,
       subject,
       booking,
       whenLabel,
-      reason: fromEmail
-        ? "BOOKING_NOTIFY_CONSOLE=true"
-        : "development mode (no PLUNK_FROM_EMAIL)",
+      reason:
+        process.env.BOOKING_NOTIFY_CONSOLE === "true"
+          ? "BOOKING_NOTIFY_CONSOLE=true"
+          : "development / non-production (server terminal)",
     });
-    return "logged";
   }
 
-  if (!apiKey || recipients.length === 0) {
+  if (!canSendViaPlunk(apiKey, fromEmail, recipients)) {
+    if (logToConsole) return "logged";
+
     console.warn(
-      "[plunk] Skipping booking notification. Set PLUNK_API_KEY and BOOKING_NOTIFY_EMAIL.",
+      "[plunk] Skipping booking notification. Need PLUNK_API_KEY, PLUNK_FROM_EMAIL (verified domain), and BOOKING_NOTIFY_EMAIL.",
     );
     return "skipped";
   }
@@ -111,20 +128,6 @@ export async function sendBookingNotification(
     <p><strong>Booking ID:</strong> ${escapeHtml(booking.id)}</p>
   `;
 
-  const payload: Record<string, unknown> = {
-    to: recipients.length === 1 ? recipients[0] : recipients,
-    subject,
-    body,
-    subscribed: false,
-  };
-
-  if (fromEmail) {
-    payload.from = {
-      name: "South Eastern Electrical Services",
-      email: fromEmail,
-    };
-  }
-
   const response = await fetch(PLUNK_SEND_URL, {
     method: "POST",
     headers: {
@@ -132,7 +135,16 @@ export async function sendBookingNotification(
       "Content-Type": "application/json",
       "Idempotency-Key": `booking-${booking.id}`,
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      to: recipients.length === 1 ? recipients[0] : recipients,
+      subject,
+      body,
+      subscribed: false,
+      from: {
+        name: "South Eastern Electrical Services",
+        email: fromEmail,
+      },
+    }),
   });
 
   if (!response.ok) {
@@ -142,5 +154,5 @@ export async function sendBookingNotification(
     );
   }
 
-  return "sent";
+  return logToConsole ? "logged" : "sent";
 }
