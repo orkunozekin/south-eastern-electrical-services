@@ -35,7 +35,7 @@ export const SERVICES = [
   },
   {
     title: "Hot tub disconnects",
-    copy: "Proper disconnect installs for hot tubs and spa equipment — done to code.",
+    copy: "Proper disconnect installs for hot tubs and spa equipment, done to code.",
   },
   {
     title: "Home generators",

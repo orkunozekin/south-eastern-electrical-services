@@ -115,7 +115,7 @@ export async function submitBookingAction(input: {
         notifyEmails: settings.notifyEmails,
       });
     } catch (notifyError) {
-      // Booking is already confirmed — don't fail the customer flow.
+      // Booking is already confirmed; don't fail the customer flow.
       console.error(
         "[plunk] Failed to send booking notification:",
         notifyError,

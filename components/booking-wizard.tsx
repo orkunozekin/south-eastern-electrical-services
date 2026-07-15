@@ -140,7 +140,7 @@ export function BookingWizard({
     <div className="space-y-10">
       {!configured && (
         <p className="border-amber/70 text-mist/80 border-l-4 bg-white/5 px-4 py-3 text-sm">
-          Firebase is not configured yet — connect credentials in{" "}
+          Firebase is not configured yet. Connect credentials in{" "}
           <code className="text-amber">.env.local</code> to load live slots and
           save bookings.
         </p>
@@ -227,7 +227,7 @@ export function BookingWizard({
             3. Your details
           </h2>
           <p className="text-mist/70 text-sm">
-            Selected: {selectedSlot.label} — we’ll call this number.
+            Selected: {selectedSlot.label}. We’ll call this number.
           </p>
 
           <div className="grid gap-5 sm:grid-cols-2">

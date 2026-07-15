@@ -18,7 +18,7 @@ export default async function BookPage() {
           Book a callback
         </h1>
         <p className="text-mist/85 mt-4 max-w-lg text-lg leading-relaxed">
-          Pick a day and time. Leave your name and number — we’ll call you.
+          Pick a day and time. Leave your name and number. We’ll call you.
         </p>
 
         <div className="mt-12 max-w-3xl">

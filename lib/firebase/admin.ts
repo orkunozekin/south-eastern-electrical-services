@@ -45,7 +45,7 @@ function getServiceAccount(): ServiceAccount {
 
   if (!privateKey.includes("BEGIN PRIVATE KEY")) {
     throw new Error(
-      "FIREBASE_PRIVATE_KEY looks invalid. Use the PEM from the service account JSON, wrapped in double quotes, with \\n for newlines — and no trailing comma.",
+      "FIREBASE_PRIVATE_KEY looks invalid. Use the PEM from the service account JSON, wrapped in double quotes, with \\n for newlines, and no trailing comma.",
     );
   }
 

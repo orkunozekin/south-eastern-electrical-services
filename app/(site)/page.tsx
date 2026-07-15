@@ -37,7 +37,7 @@ export default function HomePage() {
             <span className="text-amber">Services</span>
           </p>
           <p className="animate-hero-rise-delay text-mist/90 mt-6 max-w-md text-lg leading-relaxed md:text-xl">
-            Safe, reliable, and affordable electrical work — start with a phone
+            Safe, reliable, and affordable electrical work. Start with a phone
             call.
           </p>
           <div className="animate-hero-rise-delay-2 mt-8 flex flex-wrap gap-4">
@@ -63,7 +63,7 @@ export default function HomePage() {
             What we do
           </h2>
           <p className="text-slate mt-3 max-w-xl text-lg">
-            From panel upgrades to generators — clear work, done safely.
+            From panel upgrades to generators: clear work, done safely.
           </p>
           <ul className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
             {FEATURED_SERVICES.map((service) => (

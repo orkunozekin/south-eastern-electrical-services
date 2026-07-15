@@ -7,7 +7,7 @@ type BookCtaProps = {
 
 export function BookCta({
   heading = "Ready to talk through your project?",
-  body = "Pick a time that works. We’ll call you — no account required.",
+  body = "Pick a time that works. We’ll call you. No account required.",
 }: BookCtaProps) {
   return (
     <section className="bg-navy relative overflow-hidden px-5 py-20 md:px-8 md:py-28">

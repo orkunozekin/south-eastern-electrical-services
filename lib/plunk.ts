@@ -45,7 +45,7 @@ export type BookingNotificationInput = {
 
 /**
  * Notifies the business inbox of a new callback booking.
- * Throws on API failure so callers can log — returns skipped if not configured.
+ * Throws on API failure so callers can log; returns skipped if not configured.
  */
 export async function sendBookingNotification(
   input: BookingNotificationInput,
@@ -56,13 +56,13 @@ export async function sendBookingNotification(
 
   if (!apiKey || !fromEmail || recipients.length === 0) {
     console.warn(
-      "[plunk] Skipping booking notification — set PLUNK_API_KEY, PLUNK_FROM_EMAIL, and BOOKING_NOTIFY_EMAIL.",
+      "[plunk] Skipping booking notification. Set PLUNK_API_KEY, PLUNK_FROM_EMAIL, and BOOKING_NOTIFY_EMAIL.",
     );
     return "skipped";
   }
 
   const { booking, whenLabel } = input;
-  const subject = `New callback booking — ${booking.name} — ${whenLabel}`;
+  const subject = `New callback booking: ${booking.name} · ${whenLabel}`;
   const body = `
     <h2>New callback booking</h2>
     <p><strong>Name:</strong> ${escapeHtml(booking.name)}</p>

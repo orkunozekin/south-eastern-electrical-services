@@ -18,8 +18,8 @@ export default function ServicesPage() {
             Services
           </h1>
           <p className="text-mist/85 mt-4 max-w-xl text-lg">
-            Safe, reliable electrical work for your home — scoped clearly after
-            a phone conversation.
+            Safe, reliable electrical work for your home, scoped clearly after a
+            phone conversation.
           </p>
         </div>
       </section>
