@@ -12,6 +12,7 @@ import {
   listAvailableSlots,
 } from "@/lib/booking";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
+import { sendBookingNotification } from "@/lib/plunk";
 
 export type SlotDto = {
   slotId: string;
@@ -99,6 +100,26 @@ export async function submitBookingAction(input: {
       startsAt,
     });
 
+    const label = formatInTimeZone(
+      booking.startsAt,
+      settings.timezone,
+      "EEEE, MMM d · h:mm a zzz",
+    );
+
+    try {
+      await sendBookingNotification({
+        booking,
+        whenLabel: label,
+        notifyEmails: settings.notifyEmails,
+      });
+    } catch (notifyError) {
+      // Booking is already confirmed — don't fail the customer flow.
+      console.error(
+        "[plunk] Failed to send booking notification:",
+        notifyError,
+      );
+    }
+
     return {
       ok: true,
       booking: {
@@ -107,11 +128,7 @@ export async function submitBookingAction(input: {
         phone: booking.phone,
         startsAt: booking.startsAt.toISOString(),
         endsAt: booking.endsAt.toISOString(),
-        label: formatInTimeZone(
-          booking.startsAt,
-          settings.timezone,
-          "EEEE, MMM d · h:mm a zzz",
-        ),
+        label,
       },
     };
   } catch (error) {

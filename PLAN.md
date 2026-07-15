@@ -12,7 +12,7 @@ Living implementation plan. Check boxes as work lands. Update this file as we bu
 - [x] Define Firestore model + Admin helpers + transaction-safe booking write
 - [x] Brand-first marketing pages (home, services/about, CTA to book)
 - [x] Public booking UI: day picker, slots, name + phone, confirmation
-- [ ] Plunk business-only email on successful booking
+- [x] Plunk business-only email on successful booking
 - [ ] Firebase Auth admin login + protected `/admin` routes
 - [ ] Admin: view/cancel bookings, weekly hours, blackouts, notify settings
 
@@ -100,7 +100,7 @@ Env: `PLUNK_API_KEY`, `BOOKING_NOTIFY_EMAIL`
 
 - [ ] Firebase project + service account
 - [ ] Firebase web config (client Auth)
-- [ ] Plunk API key + notify address
+- [ ] Plunk API key, from address, and notify address
 - [ ] Admin user in Firebase Auth
 
 ## Out of scope (v1)
