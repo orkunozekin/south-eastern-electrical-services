@@ -2,6 +2,7 @@ export {
   COLLECTIONS,
   DEFAULT_BOOKING_SETTINGS,
   SETTINGS_BOOKING_DOC,
+  isDayOfWeek,
 } from "./defaults";
 export {
   getAvailableSlots,
@@ -9,18 +10,6 @@ export {
   getBookableDateStrings,
   slotIdForStart,
 } from "./slots";
-export {
-  BookingError,
-  cancelBooking,
-  createBooking,
-  getAvailabilityOverride,
-  getBooking,
-  getBookingSettings,
-  listAvailableSlots,
-  listBookings,
-  saveAvailabilityOverride,
-  saveBookingSettings,
-} from "./repository";
 export type {
   AvailabilityOverride,
   Booking,
@@ -40,3 +29,9 @@ export {
   normalizePhone,
   validateBookingFields,
 } from "./validation";
+export {
+  dayLabel,
+  draftToWeeklyHours,
+  weeklyHoursToDraft,
+  type DayHoursDraft,
+} from "./weekly-hours";

@@ -1,39 +1,47 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
+import { getAdminBookingsAction } from "@/app/actions/admin";
+import { AdminBookingsList } from "@/components/admin-bookings-list";
+import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
 
 export const metadata: Metadata = {
   title: "Admin",
   robots: { index: false, follow: false },
 };
 
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+  if (!isFirebaseAdminConfigured()) {
+    return (
+      <>
+        <h1 className="font-display text-navy text-3xl font-semibold tracking-tight uppercase md:text-4xl">
+          Bookings
+        </h1>
+        <p className="text-slate mt-3">
+          Connect Firebase Admin credentials in{" "}
+          <code className="text-navy">.env.local</code> to manage bookings.
+        </p>
+      </>
+    );
+  }
+
+  const result = await getAdminBookingsAction();
+
   return (
     <>
       <h1 className="font-display text-navy text-3xl font-semibold tracking-tight uppercase md:text-4xl">
         Bookings
       </h1>
       <p className="text-slate mt-3 max-w-xl">
-        Booking management, availability, and settings arrive in the next step.
-        You’re signed in and this area is protected.
+        Upcoming phone callbacks. Cancel a slot to free it on the public
+        calendar.
       </p>
-      <ul className="mt-8 space-y-3 text-sm">
-        <li>
-          <Link
-            href="/admin/availability"
-            className="text-navy decoration-amber font-semibold underline decoration-2 underline-offset-4"
-          >
-            Availability
-          </Link>
-        </li>
-        <li>
-          <Link
-            href="/admin/settings"
-            className="text-navy decoration-amber font-semibold underline decoration-2 underline-offset-4"
-          >
-            Settings
-          </Link>
-        </li>
-      </ul>
+      <div className="mt-8">
+        {result.ok ? (
+          <AdminBookingsList bookings={result.bookings} />
+        ) : (
+          <p className="text-red-700">{result.error}</p>
+        )}
+      </div>
     </>
   );
 }

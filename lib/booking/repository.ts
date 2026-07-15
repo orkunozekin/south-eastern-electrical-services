@@ -199,6 +199,30 @@ export async function saveAvailabilityOverride(
     .set(payload, { merge: true });
 }
 
+export async function deleteAvailabilityOverride(date: string): Promise<void> {
+  if (!isValidDateString(date)) {
+    throw new BookingError(`Invalid date: ${date}`, "INVALID_DATE");
+  }
+
+  await getAdminDb()
+    .collection(COLLECTIONS.availabilityOverrides)
+    .doc(date)
+    .delete();
+}
+
+export async function listAvailabilityOverrides(): Promise<
+  AvailabilityOverride[]
+> {
+  const snap = await getAdminDb()
+    .collection(COLLECTIONS.availabilityOverrides)
+    .orderBy("__name__", "asc")
+    .get();
+
+  return snap.docs
+    .map((doc) => overrideFromData(doc.id, doc.data()))
+    .filter((item): item is AvailabilityOverride => item !== null);
+}
+
 async function getTakenSlotIdsForDate(date: string): Promise<Set<string>> {
   const prefix = `${date}_`;
   const snap = await getAdminDb()

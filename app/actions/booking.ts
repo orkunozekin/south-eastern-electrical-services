@@ -3,14 +3,16 @@
 import { formatInTimeZone } from "date-fns-tz";
 
 import {
-  BookingError,
-  createBooking,
   DEFAULT_BOOKING_SETTINGS,
   getBookableDateStrings,
-  getBookingSettings,
   isValidDateString,
-  listAvailableSlots,
 } from "@/lib/booking";
+import {
+  BookingError,
+  createBooking,
+  getBookingSettings,
+  listAvailableSlots,
+} from "@/lib/booking/server";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
 import { sendBookingNotification } from "@/lib/plunk";
 

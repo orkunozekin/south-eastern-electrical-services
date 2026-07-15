@@ -14,7 +14,7 @@ Living implementation plan. Check boxes as work lands. Update this file as we bu
 - [x] Public booking UI: day picker, slots, name + phone, confirmation
 - [x] Plunk business-only email on successful booking
 - [x] Firebase Auth admin login + protected `/admin` routes
-- [ ] Admin: view/cancel bookings, weekly hours, blackouts, notify settings
+- [x] Admin: view/cancel bookings, weekly hours, blackouts, notify settings
 
 ---
 
