@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { cancelBookingAction, type AdminBookingDto } from "@/app/actions/admin";
-import { formatWithShortZone, shortTimezoneAbbrev } from "@/lib/timezone";
+import { formatWithShortZone } from "@/lib/timezone";
 import { useViewerTimezone } from "@/lib/use-viewer-timezone";
 
 type AdminBookingsListProps = {
@@ -46,12 +46,6 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
 
   return (
     <div className="space-y-10">
-      {bookings.length > 0 && (
-        <p className="text-slate text-sm">
-          Times shown in {shortTimezoneAbbrev(viewerTimezone)}
-        </p>
-      )}
-
       {error && <p className="text-sm text-red-700">{error}</p>}
 
       <section>
