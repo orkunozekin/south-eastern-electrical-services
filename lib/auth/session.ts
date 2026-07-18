@@ -7,13 +7,15 @@ import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS } from "./constants";
 
 export async function createSessionCookie(idToken: string): Promise<string> {
-  return getAdminAuth().createSessionCookie(idToken, {
+  const auth = await getAdminAuth();
+  return auth.createSessionCookie(idToken, {
     expiresIn: SESSION_MAX_AGE_MS,
   });
 }
 
 export async function verifySessionCookie(session: string) {
-  return getAdminAuth().verifySessionCookie(session, true);
+  const auth = await getAdminAuth();
+  return auth.verifySessionCookie(session, true);
 }
 
 export async function getSessionCookieValue(): Promise<string | undefined> {

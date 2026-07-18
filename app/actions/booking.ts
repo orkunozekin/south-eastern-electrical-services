@@ -2,17 +2,7 @@
 
 import { formatInTimeZone } from "date-fns-tz";
 
-import {
-  DEFAULT_BOOKING_SETTINGS,
-  getBookableDateStrings,
-  isValidDateString,
-} from "@/lib/booking";
-import {
-  BookingError,
-  createBooking,
-  getBookingSettings,
-  listAvailableSlots,
-} from "@/lib/booking/server";
+import { isValidDateString } from "@/lib/booking";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
 import { sendBookingNotification } from "@/lib/plunk";
 
@@ -33,12 +23,19 @@ export type BookingDto = {
 };
 
 function toErrorMessage(error: unknown): string {
-  if (error instanceof BookingError) return error.message;
-  if (error instanceof Error && error.message.includes("Firebase Admin")) {
+  if (
+    error instanceof Error &&
+    (error.name === "BookingError" || error.message.includes("Firebase"))
+  ) {
+    if (error.name === "BookingError") return error.message;
     return "Booking is temporarily unavailable. Please try again later.";
   }
-  console.error(error);
+  console.error("[booking]", error);
   return "Something went wrong. Please try again.";
+}
+
+async function loadBookingServer() {
+  return import("@/lib/booking/server");
 }
 
 export async function fetchSlotsAction(
@@ -57,20 +54,30 @@ export async function fetchSlotsAction(
   }
 
   try {
-    const [settings, slots] = await Promise.all([
-      getBookingSettings(),
-      listAvailableSlots(date),
-    ]);
+    const { BookingError, getBookingSettings, listAvailableSlots } =
+      await loadBookingServer();
 
-    return {
-      ok: true,
-      slots: slots.map((slot) => ({
-        slotId: slot.slotId,
-        startsAt: slot.startsAt.toISOString(),
-        endsAt: slot.endsAt.toISOString(),
-        label: formatInTimeZone(slot.startsAt, settings.timezone, "h:mm a"),
-      })),
-    };
+    try {
+      const [settings, slots] = await Promise.all([
+        getBookingSettings(),
+        listAvailableSlots(date),
+      ]);
+
+      return {
+        ok: true,
+        slots: slots.map((slot) => ({
+          slotId: slot.slotId,
+          startsAt: slot.startsAt.toISOString(),
+          endsAt: slot.endsAt.toISOString(),
+          label: formatInTimeZone(slot.startsAt, settings.timezone, "h:mm a"),
+        })),
+      };
+    } catch (error) {
+      if (error instanceof BookingError) {
+        return { ok: false, error: error.message };
+      }
+      throw error;
+    }
   } catch (error) {
     return { ok: false, error: toErrorMessage(error) };
   }
@@ -95,76 +102,55 @@ export async function submitBookingAction(input: {
   }
 
   try {
-    const settings = await getBookingSettings();
-    const booking = await createBooking({
-      name: input.name,
-      phone: input.phone,
-      startsAt,
-    });
-
-    const label = formatInTimeZone(
-      booking.startsAt,
-      settings.timezone,
-      "EEEE, MMM d · h:mm a zzz",
-    );
+    const { BookingError, createBooking, getBookingSettings } =
+      await loadBookingServer();
 
     try {
-      await sendBookingNotification({
-        booking,
-        whenLabel: label,
-        notifyEmails: settings.notifyEmails,
+      const settings = await getBookingSettings();
+      const booking = await createBooking({
+        name: input.name,
+        phone: input.phone,
+        startsAt,
       });
-    } catch (notifyError) {
-      // Booking is already confirmed; don't fail the customer flow.
-      console.error(
-        "[plunk] Failed to send booking notification:",
-        notifyError,
-      );
-    }
 
-    return {
-      ok: true,
-      booking: {
-        id: booking.id,
-        name: booking.name,
-        phone: booking.phone,
-        startsAt: booking.startsAt.toISOString(),
-        endsAt: booking.endsAt.toISOString(),
-        label,
-      },
-    };
+      const label = formatInTimeZone(
+        booking.startsAt,
+        settings.timezone,
+        "EEEE, MMM d · h:mm a zzz",
+      );
+
+      try {
+        await sendBookingNotification({
+          booking,
+          whenLabel: label,
+          notifyEmails: settings.notifyEmails,
+        });
+      } catch (notifyError) {
+        // Booking is already confirmed; don't fail the customer flow.
+        console.error(
+          "[plunk] Failed to send booking notification:",
+          notifyError,
+        );
+      }
+
+      return {
+        ok: true,
+        booking: {
+          id: booking.id,
+          name: booking.name,
+          phone: booking.phone,
+          startsAt: booking.startsAt.toISOString(),
+          endsAt: booking.endsAt.toISOString(),
+          label,
+        },
+      };
+    } catch (error) {
+      if (error instanceof BookingError) {
+        return { ok: false, error: error.message };
+      }
+      throw error;
+    }
   } catch (error) {
     return { ok: false, error: toErrorMessage(error) };
-  }
-}
-
-export async function getBookingPageData(): Promise<{
-  timezone: string;
-  dates: string[];
-  configured: boolean;
-}> {
-  const configured = isFirebaseAdminConfigured();
-
-  if (!configured) {
-    return {
-      timezone: DEFAULT_BOOKING_SETTINGS.timezone,
-      dates: getBookableDateStrings(DEFAULT_BOOKING_SETTINGS),
-      configured: false,
-    };
-  }
-
-  try {
-    const settings = await getBookingSettings();
-    return {
-      timezone: settings.timezone,
-      dates: getBookableDateStrings(settings),
-      configured: true,
-    };
-  } catch {
-    return {
-      timezone: DEFAULT_BOOKING_SETTINGS.timezone,
-      dates: getBookableDateStrings(DEFAULT_BOOKING_SETTINGS),
-      configured: false,
-    };
   }
 }

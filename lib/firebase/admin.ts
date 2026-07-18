@@ -5,7 +5,6 @@ import {
   type App,
   type ServiceAccount,
 } from "firebase-admin/app";
-import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 function normalizePrivateKey(raw: string): string {
@@ -68,7 +67,12 @@ export function getAdminDb(): Firestore {
   return getFirestore(getAdminApp());
 }
 
-/** Server-only Auth (verify admin session tokens). */
-export function getAdminAuth(): Auth {
+/**
+ * Server-only Auth (verify admin session tokens).
+ * Loaded lazily so Firestore booking paths never pull in firebase-admin/auth
+ * (and its jose/jwks-rsa ESM chain) on public pages.
+ */
+export async function getAdminAuth() {
+  const { getAuth } = await import("firebase-admin/auth");
   return getAuth(getAdminApp());
 }
