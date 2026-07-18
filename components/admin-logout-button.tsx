@@ -23,7 +23,7 @@ export function AdminLogoutButton() {
       type="button"
       onClick={handleLogout}
       disabled={pending}
-      className="text-mist/70 hover:text-amber text-sm font-medium transition disabled:opacity-60"
+      className="text-mist/70 hover:text-amber text-base font-medium transition disabled:opacity-60"
     >
       {pending ? "Signing out…" : "Sign out"}
     </button>

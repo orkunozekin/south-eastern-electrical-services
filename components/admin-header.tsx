@@ -45,14 +45,14 @@ export function AdminHeader({ email }: AdminHeaderProps) {
         <Link
           href="/admin"
           onClick={close}
-          className="font-display text-amber relative z-40 text-sm font-semibold tracking-[0.14em] uppercase"
+          className="font-display text-amber relative z-40 text-base font-semibold tracking-[0.14em] uppercase md:text-lg"
         >
           Admin
         </Link>
 
         {/* Desktop */}
         <div className="hidden items-center gap-6 md:flex">
-          <nav className="text-mist/80 flex gap-4 text-sm">
+          <nav className="text-mist/80 flex gap-6 text-base font-medium tracking-wide">
             {links.map((link) => (
               <Link
                 key={link.href}
