@@ -5,7 +5,7 @@ import { BookingWizard } from "@/components/booking-wizard";
 
 export const metadata: Metadata = {
   title: "Book a callback",
-  description: "Schedule a phone call with South Eastern Electrical Services.",
+  description: "Schedule a phone call with Southeastern Electrical Services.",
 };
 
 export default function BookPage() {

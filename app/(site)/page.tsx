@@ -30,7 +30,7 @@ export default function HomePage() {
 
         <div className="relative z-10 mx-auto w-full max-w-6xl px-5 pt-32 pb-16 md:px-8 md:pb-24">
           <p className="animate-hero-rise font-display text-5xl leading-[0.95] font-bold tracking-tight text-white uppercase sm:text-6xl md:text-7xl lg:text-8xl">
-            South Eastern
+            Southeastern
             <br />
             Electrical
             <br />

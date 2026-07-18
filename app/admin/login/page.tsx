@@ -23,7 +23,7 @@ export default async function AdminLoginPage() {
     <div className="bg-navy flex min-h-full flex-1 flex-col px-5 py-16 md:px-8">
       <div className="mx-auto w-full max-w-md">
         <p className="font-display text-amber text-sm font-semibold tracking-[0.16em] uppercase">
-          South Eastern Electrical
+          Southeastern Electrical
         </p>
         <h1 className="font-display mt-3 text-4xl font-bold tracking-tight text-white uppercase">
           Admin sign in

@@ -29,8 +29,8 @@ function BrandMark({ onNavigate }: { onNavigate?: () => void }) {
         />
       </span>
       <span className="font-display leading-tight font-semibold tracking-wide text-white uppercase">
-        <span className="block text-sm md:text-base">South Eastern</span>
-        <span className="block text-[0.65rem] font-medium tracking-[0.12em] text-white/75 md:text-xs">
+        <span className="block text-base md:text-lg">Southeastern</span>
+        <span className="block text-xs font-medium tracking-[0.12em] text-white/75 md:text-sm">
           Electrical Services
         </span>
       </span>

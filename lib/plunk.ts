@@ -141,7 +141,7 @@ export async function sendBookingNotification(
       body,
       subscribed: false,
       from: {
-        name: "South Eastern Electrical Services",
+        name: "Southeastern Electrical Services",
         email: fromEmail,
       },
     }),

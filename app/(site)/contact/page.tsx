@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Contact South Eastern Electrical Services or book a phone callback.",
+    "Contact Southeastern Electrical Services or book a phone callback.",
 };
 
 export default function ContactPage() {

@@ -17,8 +17,8 @@ const body = Source_Sans_3({
 
 export const metadata: Metadata = {
   title: {
-    default: "South Eastern Electrical Services",
-    template: "%s · South Eastern Electrical Services",
+    default: "Southeastern Electrical Services",
+    template: "%s · Southeastern Electrical Services",
   },
   description:
     "Licensed electrical services for homes and businesses. Book a phone callback to discuss your project.",

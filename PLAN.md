@@ -1,4 +1,4 @@
-# South Eastern Electrical — Marketing Site + Call Booking
+# Southeastern Electrical — Marketing Site + Call Booking
 
 Living implementation plan. Check boxes as work lands. Update this file as we build.
 

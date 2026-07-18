@@ -6,7 +6,7 @@ import { SERVICES } from "@/lib/content";
 export const metadata: Metadata = {
   title: "Services",
   description:
-    "Panel upgrades, rewires, generators, surge protection, and more from South Eastern Electrical Services.",
+    "Panel upgrades, rewires, generators, surge protection, and more from Southeastern Electrical Services.",
 };
 
 export default function ServicesPage() {

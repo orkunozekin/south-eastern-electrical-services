@@ -6,7 +6,7 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-12 md:flex-row md:items-end md:justify-between md:px-8">
         <div>
           <p className="font-display text-2xl font-semibold tracking-tight text-white uppercase md:text-3xl">
-            South Eastern
+            Southeastern
             <br />
             Electrical Services
           </p>
@@ -34,7 +34,7 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="text-mist/50 border-t border-white/10 px-5 py-4 text-center text-xs md:px-8">
-        © {new Date().getFullYear()} South Eastern Electrical Services. All
+        © {new Date().getFullYear()} Southeastern Electrical Services. All
         rights reserved.
       </div>
     </footer>

@@ -7,7 +7,7 @@ import { MISSION, VALUES, VISION } from "@/lib/content";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "Mission, vision, and values of South Eastern Electrical Services.",
+    "Mission, vision, and values of Southeastern Electrical Services.",
 };
 
 const ABOUT_IMAGE =

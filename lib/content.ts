@@ -1,4 +1,4 @@
-/** Shared marketing copy for South Eastern Electrical Services. */
+/** Shared marketing copy for Southeastern Electrical Services. */
 
 export const SERVICES = [
   {
