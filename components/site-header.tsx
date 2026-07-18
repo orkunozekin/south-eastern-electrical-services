@@ -29,8 +29,8 @@ function BrandMark({ onNavigate }: { onNavigate?: () => void }) {
         />
       </span>
       <span className="font-display leading-tight font-semibold tracking-wide text-white uppercase">
-        <span className="block text-base md:text-lg">Southeastern</span>
-        <span className="block text-xs font-medium tracking-[0.12em] text-white/75 md:text-sm">
+        <span className="block text-lg md:text-xl">Southeastern</span>
+        <span className="block text-sm font-medium tracking-[0.12em] text-white/75 md:text-base">
           Electrical Services
         </span>
       </span>
@@ -74,7 +74,7 @@ export function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className="group relative text-sm font-medium tracking-wide text-white/80 transition hover:text-white"
+              className="group relative text-base font-medium tracking-wide text-white/80 transition hover:text-white"
             >
               {link.label}
               <span className="absolute -bottom-1 left-0 h-px w-full origin-left scale-x-0 bg-amber transition-transform duration-300 group-hover:scale-x-100" />
@@ -82,7 +82,7 @@ export function SiteHeader() {
           ))}
           <Link
             href="/book"
-            className="bg-amber px-4 py-2 text-sm font-semibold tracking-wide text-navy-deep transition hover:bg-amber-hot"
+            className="bg-amber px-4 py-2 text-base font-semibold tracking-wide text-navy-deep transition hover:bg-amber-hot"
           >
             Book a call
           </Link>

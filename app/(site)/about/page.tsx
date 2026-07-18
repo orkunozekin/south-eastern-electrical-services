@@ -41,7 +41,7 @@ export default function AboutPage() {
           </div>
           <div className="space-y-10">
             <div>
-              <h2 className="font-display text-amber text-sm font-semibold tracking-[0.16em] uppercase">
+              <h2 className="font-display text-amber text-xl font-semibold tracking-[0.16em] uppercase md:text-2xl">
                 Mission
               </h2>
               <p className="text-navy mt-3 text-lg leading-relaxed">
@@ -49,7 +49,7 @@ export default function AboutPage() {
               </p>
             </div>
             <div>
-              <h2 className="font-display text-amber text-sm font-semibold tracking-[0.16em] uppercase">
+              <h2 className="font-display text-amber text-xl font-semibold tracking-[0.16em] uppercase md:text-2xl">
                 Vision
               </h2>
               <p className="text-navy mt-3 text-lg leading-relaxed">{VISION}</p>
@@ -58,7 +58,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="bg-mist px-5 py-16 md:px-8 md:py-24">
+      <section className="bg-mist px-5 py-10 md:px-8 md:py-14">
         <div className="mx-auto max-w-6xl">
           <h2 className="font-display text-navy text-3xl font-semibold tracking-tight uppercase md:text-4xl">
             Values

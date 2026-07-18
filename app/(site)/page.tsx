@@ -57,7 +57,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="bg-paper px-5 py-20 md:px-8 md:py-28">
+      <section className="bg-paper px-5 py-10 md:px-8 md:py-14">
         <div className="mx-auto max-w-6xl">
           <h2 className="font-display text-navy text-3xl font-semibold tracking-tight uppercase md:text-4xl">
             What we do
@@ -79,7 +79,7 @@ export default function HomePage() {
           </ul>
           <Link
             href="/services"
-            className="text-navy decoration-amber hover:text-charcoal mt-10 inline-block text-sm font-semibold tracking-wide underline decoration-2 underline-offset-4"
+            className="text-navy decoration-amber hover:text-charcoal mt-10 inline-block text-base font-semibold tracking-wide underline decoration-2 underline-offset-4 md:text-lg"
           >
             Explore all services
           </Link>
