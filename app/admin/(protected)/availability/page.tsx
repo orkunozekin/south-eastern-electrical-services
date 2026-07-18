@@ -17,7 +17,7 @@ export default async function AdminAvailabilityPage() {
           Availability
         </h1>
         <p className="text-slate mt-3">
-          Connect Firebase Admin credentials to manage hours and blackouts.
+          Booking is temporarily unavailable. Please try again later.
         </p>
       </>
     );

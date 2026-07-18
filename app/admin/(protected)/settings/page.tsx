@@ -17,7 +17,7 @@ export default async function AdminSettingsPage() {
           Settings
         </h1>
         <p className="text-slate mt-3">
-          Connect Firebase Admin credentials to edit notify settings.
+          Booking is temporarily unavailable. Please try again later.
         </p>
       </>
     );

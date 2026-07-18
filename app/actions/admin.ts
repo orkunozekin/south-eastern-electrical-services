@@ -44,7 +44,7 @@ async function assertAdmin(): Promise<
   { ok: true } | { ok: false; error: string }
 > {
   if (!isFirebaseAdminConfigured()) {
-    return { ok: false, error: "Firebase Admin is not configured." };
+    return { ok: false, error: "Booking backend is not configured." };
   }
   const admin = await getVerifiedAdmin();
   if (!admin) {
@@ -54,7 +54,15 @@ async function assertAdmin(): Promise<
 }
 
 function toActionError(error: unknown): string {
-  if (error instanceof BookingError) return error.message;
+  if (error instanceof BookingError) {
+    if (/firebase|\.env/i.test(error.message)) {
+      return "Something went wrong. Please try again.";
+    }
+    return error.message;
+  }
+  if (error instanceof Error && /firebase/i.test(error.message)) {
+    return "Something went wrong. Please try again.";
+  }
   console.error(error);
   return "Something went wrong. Please try again.";
 }

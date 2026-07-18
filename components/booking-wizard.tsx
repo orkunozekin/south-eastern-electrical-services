@@ -140,9 +140,8 @@ export function BookingWizard({
     <div className="space-y-10">
       {!configured && (
         <p className="border-amber/70 text-mist/80 border-l-4 bg-white/5 px-4 py-3 text-sm">
-          Firebase is not configured yet. Connect credentials in{" "}
-          <code className="text-amber">.env.local</code> to load live slots and
-          save bookings.
+          Booking is temporarily unavailable. Please try again later or call
+          us.
         </p>
       )}
 

@@ -22,13 +22,21 @@ export type BookingDto = {
   label: string;
 };
 
+const UNAVAILABLE =
+  "Booking is temporarily unavailable. Please try again later.";
+
+/** Never surface infra/vendor names (Firebase, env files) to visitors. */
+function toUserFacingError(message: string): string {
+  if (/firebase|\.env/i.test(message)) return UNAVAILABLE;
+  return message;
+}
+
 function toErrorMessage(error: unknown): string {
-  if (
-    error instanceof Error &&
-    (error.name === "BookingError" || error.message.includes("Firebase"))
-  ) {
-    if (error.name === "BookingError") return error.message;
-    return "Booking is temporarily unavailable. Please try again later.";
+  if (error instanceof Error && error.name === "BookingError") {
+    return toUserFacingError(error.message);
+  }
+  if (error instanceof Error && /firebase/i.test(error.message)) {
+    return UNAVAILABLE;
   }
   console.error("[booking]", error);
   return "Something went wrong. Please try again.";
@@ -46,11 +54,7 @@ export async function fetchSlotsAction(
   }
 
   if (!isFirebaseAdminConfigured()) {
-    return {
-      ok: false,
-      error:
-        "Booking is not connected yet. Add Firebase credentials to .env.local.",
-    };
+    return { ok: false, error: UNAVAILABLE };
   }
 
   try {
@@ -74,7 +78,7 @@ export async function fetchSlotsAction(
       };
     } catch (error) {
       if (error instanceof BookingError) {
-        return { ok: false, error: error.message };
+        return { ok: false, error: toUserFacingError(error.message) };
       }
       throw error;
     }
@@ -89,11 +93,7 @@ export async function submitBookingAction(input: {
   startsAt: string;
 }): Promise<{ ok: true; booking: BookingDto } | { ok: false; error: string }> {
   if (!isFirebaseAdminConfigured()) {
-    return {
-      ok: false,
-      error:
-        "Booking is not connected yet. Add Firebase credentials to .env.local.",
-    };
+    return { ok: false, error: UNAVAILABLE };
   }
 
   const startsAt = new Date(input.startsAt);
@@ -146,7 +146,7 @@ export async function submitBookingAction(input: {
       };
     } catch (error) {
       if (error instanceof BookingError) {
-        return { ok: false, error: error.message };
+        return { ok: false, error: toUserFacingError(error.message) };
       }
       throw error;
     }

@@ -7,7 +7,7 @@ import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
 export async function POST(request: Request) {
   if (!isFirebaseAdminConfigured()) {
     return NextResponse.json(
-      { error: "Firebase Admin is not configured." },
+      { error: "Auth backend is not configured." },
       { status: 503 },
     );
   }
