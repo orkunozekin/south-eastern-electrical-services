@@ -16,6 +16,7 @@ import {
   type BookingSettings,
   type DayHoursDraft,
 } from "@/lib/booking";
+import { friendlyTimezoneLabel } from "@/lib/timezone";
 
 type AdminAvailabilityFormProps = {
   settings: BookingSettings;
@@ -111,7 +112,7 @@ export function AdminAvailabilityForm({
           Weekly hours
         </h2>
         <p className="text-slate text-sm">
-          Times are local to {settings.timezone}.
+          Times are local to {friendlyTimezoneLabel(settings.timezone)}.
         </p>
         <ul className="space-y-3">
           {draft.map((row, index) => (

@@ -4,13 +4,20 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { cancelBookingAction, type AdminBookingDto } from "@/app/actions/admin";
+import { formatWithShortZone, shortTimezoneAbbrev } from "@/lib/timezone";
+import { useViewerTimezone } from "@/lib/use-viewer-timezone";
 
 type AdminBookingsListProps = {
   bookings: AdminBookingDto[];
 };
 
+function bookingWhenLabel(startsAt: string, viewerTimezone: string): string {
+  return formatWithShortZone(startsAt, viewerTimezone, "EEE, MMM d · h:mm a");
+}
+
 export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
   const router = useRouter();
+  const viewerTimezone = useViewerTimezone("America/New_York");
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -39,6 +46,10 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
 
   return (
     <div className="space-y-10">
+      <p className="text-slate text-sm">
+        Times shown in {shortTimezoneAbbrev(viewerTimezone)}
+      </p>
+
       {error && <p className="text-sm text-red-700">{error}</p>}
 
       <section>
@@ -56,7 +67,9 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
               >
                 <div>
                   <p className="text-navy font-semibold">{booking.name}</p>
-                  <p className="text-slate text-sm">{booking.label}</p>
+                  <p className="text-slate text-sm">
+                    {bookingWhenLabel(booking.startsAt, viewerTimezone)}
+                  </p>
                   <p className="text-slate text-sm">{booking.phoneDisplay}</p>
                 </div>
                 <button
@@ -91,7 +104,9 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
                     · {booking.status}
                   </span>
                 </p>
-                <p className="text-slate text-sm">{booking.label}</p>
+                <p className="text-slate text-sm">
+                  {bookingWhenLabel(booking.startsAt, viewerTimezone)}
+                </p>
                 <p className="text-slate text-sm">{booking.phoneDisplay}</p>
               </li>
             ))}

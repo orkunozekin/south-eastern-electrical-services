@@ -9,6 +9,12 @@ import {
   type BookingDto,
   type SlotDto,
 } from "@/app/actions/booking";
+import {
+  formatInZone,
+  formatWithShortZone,
+  shortTimezoneAbbrev,
+} from "@/lib/timezone";
+import { useViewerTimezone } from "@/lib/use-viewer-timezone";
 
 type BookingWizardProps = {
   dates: string[];
@@ -18,12 +24,12 @@ type BookingWizardProps = {
 
 function formatDateChip(
   date: string,
-  timezone: string,
+  businessTimezone: string,
 ): { weekday: string; day: string } {
-  const noon = fromZonedTime(`${date}T12:00:00`, timezone);
+  const noon = fromZonedTime(`${date}T12:00:00`, businessTimezone);
   return {
-    weekday: formatInTimeZone(noon, timezone, "EEE"),
-    day: formatInTimeZone(noon, timezone, "MMM d"),
+    weekday: formatInTimeZone(noon, businessTimezone, "EEE"),
+    day: formatInTimeZone(noon, businessTimezone, "MMM d"),
   };
 }
 
@@ -34,11 +40,20 @@ function formatPhoneDisplay(digits: string): string {
   return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
 }
 
+function slotTimeLabel(startsAt: string, viewerTimezone: string): string {
+  return formatInZone(startsAt, viewerTimezone, "h:mm a");
+}
+
+function bookingWhenLabel(startsAt: string, viewerTimezone: string): string {
+  return formatWithShortZone(startsAt, viewerTimezone, "EEEE, MMM d · h:mm a");
+}
+
 export function BookingWizard({
   dates,
   timezone,
   configured,
 }: BookingWizardProps) {
+  const viewerTimezone = useViewerTimezone(timezone);
   const [selectedDate, setSelectedDate] = useState<string | null>(
     dates[0] ?? null,
   );
@@ -114,7 +129,10 @@ export function BookingWizard({
         </h2>
         <p className="text-mist/85 mt-4 text-lg leading-relaxed">
           Thanks, {confirmation.name}. Expect a call at{" "}
-          <span className="text-white">{confirmation.label}</span>.
+          <span className="text-white">
+            {bookingWhenLabel(confirmation.startsAt, viewerTimezone)}
+          </span>
+          .
         </p>
         <p className="text-mist/70 mt-2 text-base">
           Phone on file: {formatPhoneDisplay(confirmation.phone)}
@@ -181,7 +199,9 @@ export function BookingWizard({
         <h2 className="font-display text-xl font-semibold tracking-tight text-white uppercase">
           2. Choose a time
         </h2>
-        <p className="text-mist/60 mt-1 text-sm">Times shown in {timezone}</p>
+        <p className="text-mist/60 mt-1 text-sm">
+          Times shown in {shortTimezoneAbbrev(viewerTimezone)}
+        </p>
 
         {pendingSlots && (
           <p className="text-mist/70 mt-4 text-sm">Loading available times…</p>
@@ -211,7 +231,7 @@ export function BookingWizard({
                     : "bg-white/10 text-white hover:bg-white/15"
                 }`}
               >
-                {slot.label}
+                {slotTimeLabel(slot.startsAt, viewerTimezone)}
               </button>
             );
           })}
@@ -227,7 +247,13 @@ export function BookingWizard({
             3. Your details
           </h2>
           <p className="text-mist/70 text-sm">
-            Selected: {selectedSlot.label}. We’ll call this number.
+            Selected:{" "}
+            {formatWithShortZone(
+              selectedSlot.startsAt,
+              viewerTimezone,
+              "h:mm a",
+            )}
+            . We’ll call this number.
           </p>
 
           <div className="grid gap-5 sm:grid-cols-2">

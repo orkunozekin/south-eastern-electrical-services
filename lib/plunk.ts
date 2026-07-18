@@ -75,7 +75,7 @@ function logBookingNotification(options: {
 
 export type BookingNotificationInput = {
   booking: Booking;
-  /** Human-readable time already formatted in business timezone. */
+  /** Human-readable time already formatted for the business timezone. */
   whenLabel: string;
   notifyEmails?: string[];
 };

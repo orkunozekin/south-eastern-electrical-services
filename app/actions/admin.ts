@@ -1,6 +1,5 @@
 "use server";
 
-import { formatInTimeZone } from "date-fns-tz";
 import { revalidatePath } from "next/cache";
 
 import { getVerifiedAdmin } from "@/lib/auth/session";
@@ -22,6 +21,7 @@ import {
   saveBookingSettings,
 } from "@/lib/booking/server";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
+import { formatWithShortZone } from "@/lib/timezone";
 
 export type AdminBookingDto = {
   id: string;
@@ -81,7 +81,7 @@ export async function getAdminBookingsAction(): Promise<
         startsAt: booking.startsAt.toISOString(),
         endsAt: booking.endsAt.toISOString(),
         status: booking.status,
-        label: formatInTimeZone(
+        label: formatWithShortZone(
           booking.startsAt,
           settings.timezone,
           "EEE, MMM d · h:mm a",

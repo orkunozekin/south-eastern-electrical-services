@@ -5,14 +5,7 @@ import { useState, useTransition, type FormEvent } from "react";
 
 import { saveAdminSettingsAction } from "@/app/actions/admin";
 import type { BookingSettings } from "@/lib/booking";
-
-const TIMEZONES = [
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-  "America/Phoenix",
-] as const;
+import { TIMEZONE_OPTIONS, friendlyTimezoneLabel } from "@/lib/timezone";
 
 type AdminSettingsFormProps = {
   settings: BookingSettings;
@@ -59,24 +52,30 @@ export function AdminSettingsForm({ settings }: AdminSettingsFormProps) {
     });
   }
 
+  const knownValues = new Set<string>(TIMEZONE_OPTIONS.map((opt) => opt.value));
+  const hasCustomTimezone = !knownValues.has(timezone);
+
   return (
     <form onSubmit={handleSubmit} className="max-w-xl space-y-6">
       <label className="block">
-        <span className="text-navy text-sm font-medium">Timezone</span>
+        <span className="text-navy text-sm font-medium">Business timezone</span>
         <select
           value={timezone}
           onChange={(e) => setTimezone(e.target.value)}
           className="border-navy/20 focus:border-amber mt-2 w-full border bg-white px-4 py-3 outline-none"
         >
-          {!TIMEZONES.includes(timezone as (typeof TIMEZONES)[number]) && (
-            <option value={timezone}>{timezone}</option>
+          {hasCustomTimezone && (
+            <option value={timezone}>{friendlyTimezoneLabel(timezone)}</option>
           )}
-          {TIMEZONES.map((tz) => (
-            <option key={tz} value={tz}>
-              {tz}
+          {TIMEZONE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.name} ({opt.abbrev})
             </option>
           ))}
         </select>
+        <span className="text-slate mt-2 block text-sm">
+          Availability hours and email notifications use this timezone.
+        </span>
       </label>
 
       <label className="block">

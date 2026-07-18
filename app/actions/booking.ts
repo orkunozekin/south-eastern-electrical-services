@@ -1,10 +1,9 @@
 "use server";
 
-import { formatInTimeZone } from "date-fns-tz";
-
 import { isValidDateString } from "@/lib/booking";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
 import { sendBookingNotification } from "@/lib/plunk";
+import { formatWithShortZone } from "@/lib/timezone";
 
 export type SlotDto = {
   slotId: string;
@@ -69,7 +68,12 @@ export async function fetchSlotsAction(
           slotId: slot.slotId,
           startsAt: slot.startsAt.toISOString(),
           endsAt: slot.endsAt.toISOString(),
-          label: formatInTimeZone(slot.startsAt, settings.timezone, "h:mm a"),
+          // Client reformats into the viewer's timezone; business TZ is fallback.
+          label: formatWithShortZone(
+            slot.startsAt,
+            settings.timezone,
+            "h:mm a",
+          ),
         })),
       };
     } catch (error) {
@@ -113,16 +117,17 @@ export async function submitBookingAction(input: {
         startsAt,
       });
 
-      const label = formatInTimeZone(
+      // Business notification stays in the configured business timezone.
+      const businessLabel = formatWithShortZone(
         booking.startsAt,
         settings.timezone,
-        "EEEE, MMM d · h:mm a zzz",
+        "EEEE, MMM d · h:mm a",
       );
 
       try {
         await sendBookingNotification({
           booking,
-          whenLabel: label,
+          whenLabel: businessLabel,
           notifyEmails: settings.notifyEmails,
         });
       } catch (notifyError) {
@@ -141,7 +146,8 @@ export async function submitBookingAction(input: {
           phone: booking.phone,
           startsAt: booking.startsAt.toISOString(),
           endsAt: booking.endsAt.toISOString(),
-          label,
+          // Client shows this in the guest's timezone; business TZ is fallback.
+          label: businessLabel,
         },
       };
     } catch (error) {
