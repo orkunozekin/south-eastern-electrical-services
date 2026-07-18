@@ -29,13 +29,12 @@ export default async function AdminLoginPage() {
           Admin sign in
         </h1>
         <p className="text-mist/75 mt-3">
-          Sign in with your staff Firebase account to manage bookings.
+          Sign in with your staff account to manage bookings.
         </p>
 
         {!isFirebaseAdminConfigured() && (
           <p className="border-amber/70 text-mist/80 mt-6 border-l-4 bg-white/5 px-4 py-3 text-sm">
-            Firebase Admin is not configured. Add credentials to{" "}
-            <code className="text-amber">.env.local</code> before signing in.
+            Sign-in is temporarily unavailable. Please try again later.
           </p>
         )}
 

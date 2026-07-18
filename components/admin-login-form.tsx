@@ -49,7 +49,11 @@ export function AdminLoginForm() {
       if (err instanceof FirebaseError) {
         setError("Invalid email or password.");
       } else if (err instanceof Error) {
-        setError(err.message);
+        setError(
+          /firebase|\.env/i.test(err.message)
+            ? "Could not sign in. Please try again later."
+            : err.message,
+        );
       } else {
         setError("Could not sign in.");
       }

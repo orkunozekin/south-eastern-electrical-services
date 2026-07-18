@@ -17,8 +17,7 @@ export default async function AdminDashboardPage() {
           Bookings
         </h1>
         <p className="text-slate mt-3">
-          Connect Firebase Admin credentials in{" "}
-          <code className="text-navy">.env.local</code> to manage bookings.
+          Booking is temporarily unavailable. Please try again later.
         </p>
       </>
     );
