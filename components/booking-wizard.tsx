@@ -128,7 +128,7 @@ export function BookingWizard({
             setPhone("");
             setFormError(null);
           }}
-          className="mt-8 cursor-pointer text-sm font-semibold tracking-wide text-amber hover:text-amber-hot"
+          className="text-amber hover:text-amber-hot mt-8 cursor-pointer text-sm font-semibold tracking-wide"
         >
           Book another time
         </button>
@@ -207,7 +207,7 @@ export function BookingWizard({
                 onClick={() => setSelectedSlot(slot)}
                 className={`cursor-pointer px-3 py-3 text-sm font-semibold tracking-wide transition ${
                   active
-                    ? "scale-[1.03] bg-amber text-navy-deep shadow-[0_0_0_2px_color-mix(in_srgb,var(--amber-hot)_80%,transparent)]"
+                    ? "bg-amber text-navy-deep scale-[1.03] shadow-[0_0_0_2px_color-mix(in_srgb,var(--amber-hot)_80%,transparent)]"
                     : "bg-white/10 text-white hover:bg-white/15"
                 }`}
               >
@@ -266,7 +266,7 @@ export function BookingWizard({
           <button
             type="submit"
             disabled={pendingSubmit}
-            className="cursor-pointer bg-amber px-6 py-3 text-base font-semibold tracking-wide text-navy-deep transition hover:bg-amber-hot disabled:cursor-not-allowed disabled:opacity-60"
+            className="bg-amber text-navy-deep hover:bg-amber-hot cursor-pointer px-6 py-3 text-base font-semibold tracking-wide transition disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pendingSubmit ? "Booking…" : "Confirm callback"}
           </button>

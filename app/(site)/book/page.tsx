@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { getBookingPageData } from "@/app/actions/booking";
+import { getBookingPageData } from "@/app/(site)/book/data";
 import { BookingWizard } from "@/components/booking-wizard";
 
 export const metadata: Metadata = {
@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   description: "Schedule a phone call with South Eastern Electrical Services.",
 };
 
-export default async function BookPage() {
-  const { dates, timezone, configured } = await getBookingPageData();
+export default function BookPage() {
+  const { dates, timezone, configured } = getBookingPageData();
 
   return (
     <section className="bg-navy px-5 pt-28 pb-20 md:px-8 md:pt-36 md:pb-28">
