@@ -198,9 +198,11 @@ export function BookingWizard({
         <h2 className="font-display text-xl font-semibold tracking-tight text-white uppercase">
           2. Choose a time
         </h2>
-        <p className="text-mist/60 mt-1 text-sm">
-          Times shown in {shortTimezoneAbbrev(viewerTimezone)}
-        </p>
+        {slots.length > 0 && (
+          <p className="text-mist/60 mt-1 text-sm">
+            Times shown in {shortTimezoneAbbrev(viewerTimezone)}
+          </p>
+        )}
 
         {pendingSlots && (
           <p className="text-mist/70 mt-4 text-sm">Loading available times…</p>

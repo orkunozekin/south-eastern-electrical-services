@@ -46,9 +46,11 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
 
   return (
     <div className="space-y-10">
-      <p className="text-slate text-sm">
-        Times shown in {shortTimezoneAbbrev(viewerTimezone)}
-      </p>
+      {bookings.length > 0 && (
+        <p className="text-slate text-sm">
+          Times shown in {shortTimezoneAbbrev(viewerTimezone)}
+        </p>
+      )}
 
       {error && <p className="text-sm text-red-700">{error}</p>}
 
