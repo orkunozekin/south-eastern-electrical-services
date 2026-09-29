@@ -1,6 +1,48 @@
 import type { Booking } from "@/lib/booking";
+import { buildCalendarInvite } from "@/lib/calendar-invite";
 
 const PLUNK_SEND_URL = "https://next-api.useplunk.com/v1/send";
+const SENDER_NAME = "Southeastern Electrical Services";
+
+type PlunkAttachment = {
+  filename: string;
+  content: string;
+  contentType: string;
+};
+
+async function sendViaPlunk(options: {
+  apiKey: string;
+  fromEmail: string;
+  to: string | string[];
+  subject: string;
+  body: string;
+  idempotencyKey: string;
+  attachments?: PlunkAttachment[];
+}): Promise<void> {
+  const response = await fetch(PLUNK_SEND_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${options.apiKey}`,
+      "Content-Type": "application/json",
+      "Idempotency-Key": options.idempotencyKey,
+    },
+    body: JSON.stringify({
+      to: options.to,
+      subject: options.subject,
+      body: options.body,
+      subscribed: false,
+      from: { name: SENDER_NAME, email: options.fromEmail },
+      ...(options.attachments ? { attachments: options.attachments } : {}),
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(
+      `Plunk send failed (${response.status}): ${detail || response.statusText}`,
+    );
+  }
+}
 
 /** Ready to hit Plunk’s API (from address still needed for real delivery). */
 export function isPlunkConfigured(): boolean {
@@ -65,6 +107,7 @@ function logBookingNotification(options: {
     `Subject: ${subject}`,
     `Name:    ${booking.name}`,
     `Phone:   ${formatPhone(booking.phone)}`,
+    `Email:   ${booking.email ?? "(not provided)"}`,
     `When:    ${whenLabel}`,
     `ID:      ${booking.id}`,
     "====================================================",
@@ -124,35 +167,102 @@ export async function sendBookingNotification(
     <h2>New callback booking</h2>
     <p><strong>Name:</strong> ${escapeHtml(booking.name)}</p>
     <p><strong>Phone:</strong> ${escapeHtml(formatPhone(booking.phone))}</p>
+    ${booking.email ? `<p><strong>Email:</strong> ${escapeHtml(booking.email)}</p>` : ""}
     <p><strong>When:</strong> ${escapeHtml(whenLabel)}</p>
     <p><strong>Booking ID:</strong> ${escapeHtml(booking.id)}</p>
   `;
 
-  const response = await fetch(PLUNK_SEND_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "Idempotency-Key": `booking-${booking.id}`,
-    },
-    body: JSON.stringify({
-      to: recipients.length === 1 ? recipients[0] : recipients,
-      subject,
-      body,
-      subscribed: false,
-      from: {
-        name: "Southeastern Electrical Services",
-        email: fromEmail,
-      },
-    }),
+  await sendViaPlunk({
+    apiKey,
+    fromEmail: fromEmail!,
+    to: recipients.length === 1 ? recipients[0]! : recipients,
+    subject,
+    body,
+    idempotencyKey: `booking-${booking.id}`,
   });
 
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(
-      `Plunk send failed (${response.status}): ${detail || response.statusText}`,
+  return logToConsole ? "logged" : "sent";
+}
+
+export type BookingConfirmationInput = {
+  booking: Booking;
+  /** Human-readable time formatted for the customer's timezone. */
+  whenLabel: string;
+};
+
+/**
+ * Emails the customer a confirmation with an `.ics` calendar invite attached.
+ * No-op when the booking has no email.
+ */
+export async function sendBookingConfirmation(
+  input: BookingConfirmationInput,
+): Promise<BookingNotificationResult> {
+  const { booking, whenLabel } = input;
+  if (!booking.email) return "skipped";
+
+  const apiKey = process.env.PLUNK_API_KEY;
+  const fromEmail = process.env.PLUNK_FROM_EMAIL?.trim();
+  const subject = `Your callback is booked · ${whenLabel}`;
+  const phone = formatPhone(booking.phone);
+
+  const logToConsole = shouldLogToConsole();
+  if (logToConsole) {
+    process.stderr.write(
+      [
+        "",
+        "========== Booking confirmation (console) ==========",
+        `To:      ${booking.email}`,
+        `Subject: ${subject}`,
+        `When:    ${whenLabel}`,
+        "Attachment: invite.ics",
+        "====================================================",
+        "",
+      ].join("\n") + "\n",
     );
   }
+
+  if (!apiKey || !fromEmail) {
+    if (!logToConsole) {
+      console.warn(
+        "[plunk] Skipping booking confirmation. Need PLUNK_API_KEY and PLUNK_FROM_EMAIL (verified domain).",
+      );
+    }
+    return "skipped";
+  }
+
+  const invite = buildCalendarInvite({
+    uid: `booking-${booking.id}@${fromEmail.split("@")[1]}`,
+    startsAt: booking.startsAt,
+    endsAt: booking.endsAt,
+    summary: "Callback from Southeastern Electrical Services",
+    description: `Southeastern Electrical Services will call you at ${phone}.`,
+    location: `Phone call to ${phone}`,
+    organizer: { name: SENDER_NAME, email: fromEmail },
+    attendee: { name: booking.name, email: booking.email },
+  });
+
+  const body = `
+    <h2>Your callback is booked</h2>
+    <p>Thanks, ${escapeHtml(booking.name)}. We'll call you at <strong>${escapeHtml(phone)}</strong> on <strong>${escapeHtml(whenLabel)}</strong>.</p>
+    <p>A calendar invite is attached. Open it to add the call to your calendar.</p>
+    <p>— Southeastern Electrical Services</p>
+  `;
+
+  await sendViaPlunk({
+    apiKey,
+    fromEmail,
+    to: booking.email,
+    subject,
+    body,
+    idempotencyKey: `booking-confirmation-${booking.id}`,
+    attachments: [
+      {
+        filename: "invite.ics",
+        content: Buffer.from(invite, "utf8").toString("base64"),
+        contentType: "text/calendar",
+      },
+    ],
+  });
 
   return logToConsole ? "logged" : "sent";
 }

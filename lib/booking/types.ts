@@ -31,6 +31,8 @@ export type Booking = {
   id: string;
   name: string;
   phone: string;
+  /** Only present when the customer asked for a calendar invite. */
+  email?: string;
   startsAt: Date;
   endsAt: Date;
   status: BookingStatus;
@@ -48,6 +50,7 @@ export type Slot = {
 export type CreateBookingInput = {
   name: string;
   phone: string;
+  email?: string;
   /** Slot start instant (UTC Date). Must match a generated available slot. */
   startsAt: Date;
 };

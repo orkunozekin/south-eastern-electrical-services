@@ -27,6 +27,7 @@ export type AdminBookingDto = {
   id: string;
   name: string;
   phone: string;
+  email: string | null;
   startsAt: string;
   endsAt: string;
   status: "confirmed" | "cancelled";
@@ -86,6 +87,7 @@ export async function getAdminBookingsAction(): Promise<
         name: booking.name,
         phone: booking.phone,
         phoneDisplay: formatPhone(booking.phone),
+        email: booking.email ?? null,
         startsAt: booking.startsAt.toISOString(),
         endsAt: booking.endsAt.toISOString(),
         status: booking.status,

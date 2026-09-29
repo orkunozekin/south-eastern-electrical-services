@@ -34,14 +34,22 @@ export function isValidName(name: string): boolean {
   return trimmed.length >= 2 && trimmed.length <= 100;
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function isValidEmail(email: string): boolean {
+  return email.length <= 254 && EMAIL_RE.test(email);
+}
+
 export type ValidatedBookingFields = {
   name: string;
   phone: string;
+  email?: string;
 };
 
 export function validateBookingFields(
   name: unknown,
   phone: unknown,
+  email?: unknown,
 ): { ok: true; value: ValidatedBookingFields } | { ok: false; error: string } {
   if (typeof name !== "string" || !isValidName(name)) {
     return {
@@ -56,11 +64,21 @@ export function validateBookingFields(
     };
   }
 
+  const trimmedEmail =
+    typeof email === "string" ? email.trim().toLowerCase() : "";
+  if (trimmedEmail && !isValidEmail(trimmedEmail)) {
+    return {
+      ok: false,
+      error: "Please enter a valid email, or leave it blank.",
+    };
+  }
+
   return {
     ok: true,
     value: {
       name: name.trim(),
       phone: normalizePhone(phone),
+      ...(trimmedEmail ? { email: trimmedEmail } : {}),
     },
   };
 }
