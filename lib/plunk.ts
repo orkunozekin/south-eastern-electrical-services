@@ -222,11 +222,11 @@ export async function sendBookingConfirmation(
   }
 
   if (!apiKey || !fromEmail) {
-    if (logToConsole) return "logged";
-
-    console.warn(
-      "[plunk] Skipping booking confirmation. Need PLUNK_API_KEY and PLUNK_FROM_EMAIL (verified domain).",
-    );
+    if (!logToConsole) {
+      console.warn(
+        "[plunk] Skipping booking confirmation. Need PLUNK_API_KEY and PLUNK_FROM_EMAIL (verified domain).",
+      );
+    }
     return "skipped";
   }
 

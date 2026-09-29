@@ -26,7 +26,7 @@ function escapeText(value: string): string {
 }
 
 function escapeParam(value: string): string {
-  return `"${value.replaceAll('"', "'")}"`;
+  return `"${value.replace(/[\r\n]/g, " ").replaceAll('"', "'")}"`;
 }
 
 /** RFC 5545 caps content lines at 75 octets; continuations start with a space. */
