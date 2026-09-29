@@ -53,15 +53,22 @@ they silently block nothing.
 where `slot.startsAt < booked.endsAt && booked.startsAt < slot.endsAt`.
 
 In `lib/booking/repository.ts`, replace `getTakenSlotIdsForDate` with
-`getBookedRangesForDate(date, timezone)`. It queries `bookings` where
-`startsAt` falls in that local day (converted to UTC bounds with
-`fromZonedTime`) and keeps `status == "confirmed"`. Querying bookings instead
-of `slots` makes the booking documents the source of truth. The `slots`
-collection stays only as a lock (below).
+`getBookedRangesForDate(date, timezone)`. It queries `bookings` whose
+`startsAt` is in `[dayStart − MAX_SLOT_MINUTES, dayEnd)`, where `dayStart` and
+`dayEnd` are that local day's bounds converted to UTC with `fromZonedTime`. It
+keeps only `status == "confirmed"` bookings whose `endsAt > dayStart`.
+Querying bookings instead of `slots` makes the booking documents the **only**
+source of truth. The `slots` collection is no longer read or written (see
+below).
 
-A booking that starts before midnight and ends after it can't happen with
-current slot generation (ranges are within one day), so a same-day query is
-sufficient.
+The lookback of `MAX_SLOT_MINUTES` (120, the highest slot length Settings
+allows) matters after a **timezone change**. A booking made under the old
+timezone can start before midnight in the new one and end after it, for
+example a late-evening Pacific booking viewed in Eastern. A query limited to
+bookings that _start_ on the requested date would miss it, and would offer a
+slot early the next day that overlaps its end. With the lookback, that booking
+is included and the overlapping slot is hidden. So the customer is never shown
+a time that the booking transaction would then reject.
 
 ### Double-booking guard
 
@@ -83,9 +90,7 @@ business day**, then check for overlaps while holding it.
 2. In the `createBooking` transaction, in this order:
    1. `tx.get(dayRef)`. The document may not exist yet; Firestore still tracks
       the read.
-   2. `tx.get(slotRef)`, the existing exact-slot check (kept as a fast
-      rejection).
-   3. Query overlapping bookings:
+   2. Query overlapping bookings:
 
       ```ts
       const overlapping = await tx.get(
@@ -105,8 +110,19 @@ business day**, then check for overlaps while holding it.
       bounds how early an overlapping booking can start, so the query doesn't
       depend on day boundaries.
 
-   4. Write the booking, the slot document, and
+   3. Write the booking and
       `tx.set(dayRef, { lastBookingAt: now, count: FieldValue.increment(1) }, { merge: true })`.
+
+**Remove the `slots/{slotId}` check and write.** The exact-slot check must go,
+not just stop being relied on. Slot IDs are local times in the business
+timezone, so after a timezone change an old booking's ID can collide with an
+unrelated, genuinely free slot. For example, a 10:00 AM Eastern booking has ID
+`…_1000`, and after switching to Central the free 10:00 AM Central slot has
+the same ID. Keeping the check would reject a customer booking a slot the
+overlap filter correctly offered. Rejection now comes only from the overlap
+query, which compares real times. Likewise, `cancelBooking` stops writing to
+`slots`; it only updates the booking's status. The booking's `slotId` field
+can stay as a readable label.
 
 Every booking on a day writes the same day document, so two concurrent
 bookings on that day always conflict. Firestore aborts and retries one of them,
@@ -149,7 +165,10 @@ preview covers any that end up outside availability.
 ## Implementation steps
 
 - [ ] `getAvailableSlots` takes booked ranges and filters by overlap
-- [ ] `getBookedRangesForDate` replaces `getTakenSlotIdsForDate`
+- [ ] `getBookedRangesForDate` replaces `getTakenSlotIdsForDate`, with the
+      `MAX_SLOT_MINUTES` lookback before the day's start
+- [ ] Remove the `slots/{slotId}` read and write from `createBooking`, and the
+      `slots` write from `cancelBooking`
 - [ ] `createBooking` transaction: read and write a `bookingDays/{date}` lock
       document, then run the overlapping-bookings query before writing
 - [ ] `saveOverrideAction`: validate blocked slots against the generated grid
@@ -166,13 +185,16 @@ Unit (`getAvailableSlots`):
 - 30-minute booking at 9:30, 60-minute grid: the 9:00 slot is excluded
 - 60-minute booking at 9:00, 30-minute grid: 9:00 and 9:30 are excluded
 - Adjacent booking (9:00–9:30) doesn't exclude 9:30–10:00
+- A booking from the previous local date that ends after midnight excludes the
+  overlapping early slot on the requested date (after a timezone change)
 
 Manual:
 
 - [ ] Book 9:30 on 30-minute slots, switch to 60: 9:00 isn't offered on
       `/book`
 - [ ] Change the business timezone with a booking at 10:00 AM ET: the
-      equivalent 9:00 AM CT slot isn't offered, and 10:00 AM CT is
+      equivalent 9:00 AM CT slot isn't offered, and 10:00 AM CT is offered
+      **and can be booked** (not rejected by a stale slot ID)
 - [ ] Concurrency: a local script against the **Firestore emulator** (not
       production; see `AGENTS.md`) that calls `createBooking` many times in
       parallel for overlapping slots with different IDs (e.g. 9:00–10:00 and
@@ -182,12 +204,11 @@ Manual:
 
 ## Risks
 
-- **Cancelled-booking `slots` docs:** `cancelBooking` sets `booked: false` on
-  the slot document. With bookings as the source of truth, stale `slots` docs
-  can't block anything, so this is fine. The lock document just gets
-  overwritten on the next booking.
+- **Legacy `slots` docs:** existing `slots` documents stay in Firestore but are
+  never read, so they can't block anything. `scripts/clear-bookings.mjs` can
+  keep deleting them. Optionally, delete the collection once this ships.
 - **New collection:** `bookingDays` holds one small document per day that has
   had a booking. It needs no cleanup, and `scripts/clear-bookings.mjs` should
-  delete it alongside `bookings` and `slots`.
+  delete it alongside `bookings`.
 - **Behaviour change in one function:** both `/book` and `createBooking` use
   `getAvailableSlots`, so one change fixes both paths. Test both.

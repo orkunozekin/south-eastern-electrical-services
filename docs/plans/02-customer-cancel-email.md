@@ -84,6 +84,7 @@ Not yet done:
 | Field                | Type                                      | Notes                                                        |
 | -------------------- | ----------------------------------------- | ------------------------------------------------------------ |
 | `customerTimezone`   | `string`, optional                        | IANA zone from the booking request (already validated there) |
+| `inviteUid`          | `string`, optional                        | Exact `UID` of the invite the customer was sent              |
 | `cancelledAt`        | timestamp                                 | Already written, but not typed or read                       |
 | `cancelNotice`       | `"sent" \| "failed" \| "skipped" \| null` | Result of the customer email                                 |
 | `cancelNoticeAt`     | timestamp \| null                         |                                                              |
@@ -104,14 +105,33 @@ Extend `buildCalendarInvite` with:
 - `sequence: number` (default `0`)
 
 For `CANCEL`, emit `METHOD:CANCEL`, `STATUS:CANCELLED` and `SEQUENCE:1`, drop
-the `VALARM`, and keep **the same `UID`** as the original invite
-(`booking-{id}@{sender domain}`). Calendar clients match on `UID` and remove
-the event when the sequence is higher. Pull the UID construction out of
-`sendBookingConfirmation` into a shared `inviteUid(bookingId, fromEmail)`
-helper, so both emails always agree.
+the `VALARM`, and use **exactly the same `UID`** as the original invite.
+Calendar clients match on `UID` and remove the event when the sequence is
+higher.
 
-Only attach the cancellation `.ics` when the booking had an email at creation
-time, which is always true when we're emailing it.
+**Preserve the original UID; don't rebuild it.** Today
+`sendBookingConfirmation` builds the UID as `booking-{id}@{sender domain}`,
+from `PLUNK_FROM_EMAIL` at send time. If the sender domain changes between
+booking and cancelling (e.g. moving from a temporary domain to the client's
+own), rebuilding the UID at cancel time would produce a different value. The
+cancellation would be recorded as sent, but the original event would stay in
+the customer's calendar. So:
+
+1. `sendBookingConfirmation` returns the UID it used along with its result.
+2. After a successful send, `submitBookingAction` writes it to
+   `bookings/{id}.inviteUid`. If that write fails, log it and don't fail the
+   booking, in line with the `AGENTS.md` non-negotiable.
+3. The cancellation reads `booking.inviteUid` and uses it verbatim. It never
+   calls the UID builder.
+4. **No stored `inviteUid` means no invite was sent** (no email, or the
+   confirmation failed or was skipped). The cancellation email is sent without
+   a `.ics` attachment, since there's no event to remove.
+5. **Backfill for bookings made before this ships:** a one-off script sets
+   `inviteUid = booking-{id}@{current sender domain}` on upcoming confirmed
+   bookings that have an email. It must run **before** any change to
+   `PLUNK_FROM_EMAIL`'s domain, while the current domain is still the one
+   their invites were sent with. Note in the script that it's only valid for
+   that reason.
 
 ### Email (`lib/plunk.ts`)
 
@@ -210,7 +230,11 @@ notifying, so:
 **Phase 1: sending**
 
 - [ ] Store `customerTimezone` on new bookings
-- [ ] `buildCalendarInvite`: `method` / `sequence`; shared `inviteUid` helper
+- [ ] `buildCalendarInvite`: `method` / `sequence`
+- [ ] `sendBookingConfirmation` returns the UID it used; `submitBookingAction`
+      stores it as `inviteUid` after a successful send
+- [ ] One-off backfill of `inviteUid` for existing upcoming bookings with an
+      email (run before any sender-domain change)
 - [ ] `sendViaPlunk`: `replyTo` option
 - [ ] `sendCustomerCancellation` and template with the `cancel.ics`
       attachment
@@ -253,6 +277,11 @@ production project without the owner's OK.
 - [ ] Calendar removal: book with a Gmail and an Outlook/iCloud address, add
       the invite, cancel, and confirm the event is removed or marked cancelled
       in each client
+- [ ] Domain change: book (UID stored), change `PLUNK_FROM_EMAIL` to another
+      verified domain on a preview deploy, cancel, and confirm the event is
+      still removed (the stored UID is used, not a rebuilt one)
+- [ ] Confirmation failed at booking time (no `inviteUid`): the cancellation
+      email is sent without a `.ics` attachment
 - [ ] Untick "Email the customer": nothing is sent; status is `skipped`
 - [ ] Simulate a Plunk failure (bad API key on preview): the booking is still
       cancelled, the slot is freed, the UI says "Email failed", status is
@@ -270,9 +299,9 @@ production project without the owner's OK.
   honour `METHOD:CANCEL` with a matching `UID`, but some webmail clients only
   show it as a notice. The email body must say the call is cancelled on its
   own terms, without relying on the attachment.
-- **Sender domain changes:** the invite `UID` includes the sender domain. If
-  `PLUNK_FROM_EMAIL` changes domain between booking and cancelling, the
-  cancellation won't match. Consider storing the UID on the booking when the
-  confirmation is sent.
+- **Sender domain changes:** handled by storing `inviteUid` at confirmation
+  time. The remaining risk is running the backfill _after_ a domain change,
+  which would stamp legacy bookings with the wrong UID. Run it in the same
+  deploy as this feature.
 - **Low uptake:** if few customers leave an email, admins still need to call.
   The UI makes that explicit rather than implying everyone was notified.
