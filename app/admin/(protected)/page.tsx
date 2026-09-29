@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { getAdminBookingsAction } from "@/app/actions/admin";
 import { AdminBookingsList } from "@/components/admin-bookings-list";
+import { AdminHelpLink } from "@/components/admin-help-link";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
 
 export const metadata: Metadata = {
@@ -34,6 +35,7 @@ export default async function AdminDashboardPage() {
         Upcoming phone callbacks. Cancel a slot to free it on the public
         calendar.
       </p>
+      <AdminHelpLink section="bookings">How bookings work</AdminHelpLink>
       <div className="mt-8">
         {result.ok ? (
           <AdminBookingsList bookings={result.bookings} />

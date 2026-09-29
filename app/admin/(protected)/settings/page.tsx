@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { getAdminSettingsAction } from "@/app/actions/admin";
+import { AdminHelpLink } from "@/components/admin-help-link";
 import { AdminSettingsForm } from "@/components/admin-settings-form";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
 
@@ -33,6 +34,9 @@ export default async function AdminSettingsPage() {
       <p className="text-slate mt-3 max-w-xl">
         Timezone, slot length, and who gets booking notification emails.
       </p>
+      <AdminHelpLink section="settings">
+        What each setting does (read before changing)
+      </AdminHelpLink>
       <div className="mt-8">
         {result.ok ? (
           <AdminSettingsForm settings={result.settings} />

@@ -106,12 +106,21 @@ Every admin page has a dark blue bar across the top with:
 
 - **Admin** (left): takes you back to the Bookings page.
 - **Bookings**, **Availability**, **Settings**: the three admin pages.
+- **Guide**: this guide. You can open it any time.
 - **Your email address**: shows which account you're signed in as.
 - **Sign out**.
 
 **On a phone or small tablet**, those links are hidden behind a **menu button**
 (three horizontal lines) in the top-right corner. Tap it to open the menu, and
 tap it again (or press outside the menu) to close it.
+
+### Getting help while you work
+
+- Each admin page has a **help link** under its title (for example "How
+  bookings work"). It opens this guide at the section for that page.
+- In the guide, use **On this page** to jump to any section. It's on the left
+  on a computer, and at the top on a phone.
+- To keep a copy, click **Print or save as PDF** at the top of the guide.
 
 ---
 

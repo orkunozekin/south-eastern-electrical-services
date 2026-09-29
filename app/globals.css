@@ -85,6 +85,34 @@ body {
   animation: hero-zoom 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.guide-prose > * + * {
+  margin-top: 1.25rem;
+}
+
+.guide-prose > h3 {
+  margin-top: 3rem;
+}
+
+.guide-prose > h4 {
+  margin-top: 2rem;
+}
+
+.guide-prose > h3 + *,
+.guide-prose > h4 + * {
+  margin-top: 0.875rem;
+}
+
+.guide-prose > hr {
+  margin-block: 2.5rem;
+}
+
+@media print {
+  .guide-prose table,
+  .guide-prose aside {
+    break-inside: avoid;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-hero-rise,
   .animate-hero-rise-delay,
