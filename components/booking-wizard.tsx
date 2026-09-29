@@ -62,6 +62,7 @@ export function BookingWizard({
   const [slotsError, setSlotsError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<BookingDto | null>(null);
   const [pendingSlots, startSlots] = useTransition();
@@ -106,7 +107,9 @@ export function BookingWizard({
       const result = await submitBookingAction({
         name,
         phone,
+        email: email.trim() || undefined,
         startsAt: selectedSlot.startsAt,
+        timezone: viewerTimezone,
       });
 
       if (!result.ok) {
@@ -137,6 +140,18 @@ export function BookingWizard({
         <p className="text-mist/70 mt-2 text-base">
           Phone on file: {formatPhoneDisplay(confirmation.phone)}
         </p>
+        {confirmation.calendarInvite === "sent" && (
+          <p className="text-mist/70 mt-2 text-base">
+            A calendar invite is on its way to{" "}
+            <span className="text-white">{confirmation.email}</span>.
+          </p>
+        )}
+        {confirmation.calendarInvite === "failed" && (
+          <p className="text-mist/70 mt-2 text-base">
+            Your call is booked, but we couldn’t send the calendar invite to{" "}
+            {confirmation.email}. We’ll still call you at the time above.
+          </p>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -144,6 +159,7 @@ export function BookingWizard({
             setSelectedSlot(null);
             setName("");
             setPhone("");
+            setEmail("");
             setFormError(null);
           }}
           className="text-amber hover:text-amber-hot mt-8 cursor-pointer text-sm font-semibold tracking-wide"
@@ -158,8 +174,7 @@ export function BookingWizard({
     <div className="space-y-10">
       {!configured && (
         <p className="border-amber/70 text-mist/80 border-l-4 bg-white/5 px-4 py-3 text-sm">
-          Booking is temporarily unavailable. Please try again later or call
-          us.
+          Booking is temporarily unavailable. Please try again later or call us.
         </p>
       )}
 
@@ -285,6 +300,25 @@ export function BookingWizard({
                 className="bg-navy-deep/50 focus:border-amber mt-2 w-full border border-white/20 px-4 py-3 text-white transition outline-none"
                 placeholder="(555) 123-4567"
               />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="text-mist/80 text-sm font-medium">
+                Email <span className="text-mist/50">(optional)</span>
+              </span>
+              <input
+                name="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                aria-describedby="email-hint"
+                className="bg-navy-deep/50 focus:border-amber mt-2 w-full border border-white/20 px-4 py-3 text-white transition outline-none"
+                placeholder="jane@example.com"
+              />
+              <span id="email-hint" className="text-mist/60 mt-2 block text-sm">
+                Only needed if you’d like a calendar invite for the call. We’ll
+                still call your phone either way.
+              </span>
             </label>
           </div>
 

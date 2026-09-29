@@ -2,7 +2,7 @@
 
 import { isValidDateString } from "@/lib/booking";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
-import { sendBookingNotification } from "@/lib/plunk";
+import { sendBookingConfirmation, sendBookingNotification } from "@/lib/plunk";
 import { formatWithShortZone } from "@/lib/timezone";
 
 export type SlotDto = {
@@ -16,9 +16,12 @@ export type BookingDto = {
   id: string;
   name: string;
   phone: string;
+  email: string | null;
   startsAt: string;
   endsAt: string;
   label: string;
+  /** `null` when no email was given. */
+  calendarInvite: "sent" | "failed" | null;
 };
 
 const UNAVAILABLE =
@@ -39,6 +42,16 @@ function toErrorMessage(error: unknown): string {
   }
   console.error("[booking]", error);
   return "Something went wrong. Please try again.";
+}
+
+function isValidTimezone(value: unknown): value is string {
+  if (typeof value !== "string" || !value) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function loadBookingServer() {
@@ -94,7 +107,10 @@ export async function fetchSlotsAction(
 export async function submitBookingAction(input: {
   name: string;
   phone: string;
+  email?: string;
   startsAt: string;
+  /** Visitor's IANA timezone, used for the time shown in their invite email. */
+  timezone?: string;
 }): Promise<{ ok: true; booking: BookingDto } | { ok: false; error: string }> {
   if (!isFirebaseAdminConfigured()) {
     return { ok: false, error: UNAVAILABLE };
@@ -114,6 +130,7 @@ export async function submitBookingAction(input: {
       const booking = await createBooking({
         name: input.name,
         phone: input.phone,
+        email: input.email,
         startsAt,
       });
 
@@ -123,19 +140,42 @@ export async function submitBookingAction(input: {
         settings.timezone,
         "EEEE, MMM d · h:mm a",
       );
+      const customerLabel = formatWithShortZone(
+        booking.startsAt,
+        isValidTimezone(input.timezone) ? input.timezone : settings.timezone,
+        "EEEE, MMM d · h:mm a",
+      );
 
-      try {
-        await sendBookingNotification({
+      // Booking is already confirmed; email failures don't fail the customer flow.
+      const [notifyResult, confirmResult] = await Promise.allSettled([
+        sendBookingNotification({
           booking,
           whenLabel: businessLabel,
           notifyEmails: settings.notifyEmails,
-        });
-      } catch (notifyError) {
-        // Booking is already confirmed; don't fail the customer flow.
+        }),
+        sendBookingConfirmation({ booking, whenLabel: customerLabel }),
+      ]);
+
+      if (notifyResult.status === "rejected") {
         console.error(
           "[plunk] Failed to send booking notification:",
-          notifyError,
+          notifyResult.reason,
         );
+      }
+      if (confirmResult.status === "rejected") {
+        console.error(
+          "[plunk] Failed to send booking confirmation:",
+          confirmResult.reason,
+        );
+      }
+
+      let calendarInvite: BookingDto["calendarInvite"] = null;
+      if (booking.email) {
+        calendarInvite =
+          confirmResult.status === "fulfilled" &&
+          confirmResult.value !== "skipped"
+            ? "sent"
+            : "failed";
       }
 
       return {
@@ -144,10 +184,12 @@ export async function submitBookingAction(input: {
           id: booking.id,
           name: booking.name,
           phone: booking.phone,
+          email: booking.email ?? null,
           startsAt: booking.startsAt.toISOString(),
           endsAt: booking.endsAt.toISOString(),
           // Client shows this in the guest's timezone; business TZ is fallback.
           label: businessLabel,
+          calendarInvite,
         },
       };
     } catch (error) {
