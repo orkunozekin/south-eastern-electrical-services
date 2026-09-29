@@ -29,8 +29,9 @@ normal web pages in your browser, on a computer, tablet, or phone.
 ## 1. How booking works (the big picture)
 
 Customers visit the **Book a callback** page on the website, pick a day and a
-time, and leave their **name** and **phone number**. That's all they provide:
-customers don't create accounts and don't give an email address.
+time, and leave their **name** and **phone number**. They can also leave an
+**email address** if they'd like a calendar invite for the call. That's
+optional. Customers don't create accounts.
 
 When someone books:
 
@@ -38,6 +39,9 @@ When someone books:
   so nobody else can book the same time.
 - An email is sent to the business address(es) you've chosen in
   [Settings](#6-settings-page).
+- If the customer left an email address, they get a confirmation email with a
+  calendar invite attached (see
+  [Emails customers receive](#emails-customers-receive)).
 - The booking shows up on your [Bookings page](#4-bookings-page).
 - **You** call the customer at the booked time. The website doesn't place the
   call.
@@ -125,6 +129,7 @@ shows:
 - The customer's **name**
 - The **day and time** of the callback, e.g. `Tue, Oct 6 · 10:30 AM ET`
 - Their **phone number**, e.g. `(555) 123-4567`
+- Their **email address**, if they left one
 - A **Cancel** button
 
 ### Recent / cancelled
@@ -156,8 +161,11 @@ What happens:
 
 Important:
 
-- **The customer is not notified.** The website doesn't email or text
-  customers. If you cancel, please call the customer to let them know.
+- **The customer is not notified.** The website doesn't send a cancellation
+  email or text. If you cancel, please call the customer to let them know. If
+  they left an email address, they received a calendar invite when they booked,
+  and it **stays in their calendar** after you cancel. Ask them to delete it
+  when you call.
 - **Cancelling can't be undone.** If you cancel by mistake, re-book the
   customer yourself (see
   [Booking on behalf of a customer](#booking-on-behalf-of-a-customer)).
@@ -327,7 +335,18 @@ automatically, so you don't need to do anything for them.
 
 You'll normally set this once and leave it. Changing it shifts **all your
 hours** to the new timezone. For example, 9:00 AM Eastern becomes 9:00 AM
-Central, which is an hour later in real time. Existing bookings aren't affected.
+Central, which is an hour later in real time.
+
+**Don't change the timezone while you have upcoming bookings.** Existing
+bookings keep their real time, but the website can lose track of which new
+slots they occupy. That means another customer could book the same moment as
+an existing booking. For example, a 10:00 AM Eastern booking is 9:00 AM
+Central, and after switching to Central the 9:00 AM slot could be offered to
+someone else. If you need to change it:
+
+1. Check the **Upcoming** list on the Bookings page first. Ideally, change the
+   timezone only when it's empty.
+2. If it isn't empty, contact your developer before changing it.
 
 ### 6.2 Slot duration (minutes)
 
@@ -361,25 +380,66 @@ The email address(es) that receive a message whenever a customer books.
 
 ## 7. Booking notification emails
 
-Every time a customer books, everyone on your **Notify emails** list gets an
+When a customer books, everyone on your **Notify emails** list is sent an
 email.
 
 - **From:** Southeastern Electrical Services
 - **Subject:** `New callback booking: Jane Doe · Tuesday, Oct 6 · 10:30 AM ET`
-- **Contents:** the customer's name, phone number, date and time (in your
-  business timezone), and a booking ID.
+- **Contents:** the customer's name, phone number, email address (if they left
+  one), date and time (in your business timezone), and a booking ID.
 
-Tips:
+### Emails can't be guaranteed: use the Bookings page as your list
+
+A booking is always saved, even if its email doesn't go out. If the email
+service has a problem or isn't set up correctly, **the booking still succeeds,
+but no email is sent and you won't see a warning.** So:
+
+- **Treat the Bookings page as the official list,** not your inbox. Check it at
+  least once a day, and before you plan your calls.
+- **Check emails are arriving before you rely on them** (see below), and again
+  whenever you change the Notify emails list.
+
+### Check emails are arriving (do this when you first start)
+
+1. Go to the public **Book a callback** page and book a slot using your own
+   name, phone number, and email address.
+2. Confirm that:
+   - the booking appears on the **Bookings** page
+   - every address on your Notify emails list receives the notification
+     (check spam or junk too)
+   - your own email address receives the confirmation and calendar invite
+3. **Cancel** the test booking from the Bookings page, and delete the test
+   invite from your calendar.
+
+If any email doesn't arrive after 10 minutes (including spam), contact your
+developer.
+
+### Tips
 
 - **Check your spam or junk folder** the first time, and mark the email as
   "Not spam" so future ones land in your inbox.
 - **Emails are sent when someone books, but not when a booking is cancelled.**
-- **The Bookings page is always the official list.** If an email is ever
-  delayed or goes missing, the booking is still saved and will be on the
-  Bookings page.
 - Your developer may also have set up an address behind the scenes that
   always gets a copy. Removing addresses in Settings won't stop that one; ask
   your developer if you want it changed.
+
+### Emails customers receive
+
+Customers who leave an email address when booking are sent a confirmation
+email:
+
+- **Subject:** `Your callback is booked · Tuesday, Oct 6 · 10:30 AM ET`
+  (shown in the customer's own timezone)
+- **Contents:** the date and time, and the phone number you'll call.
+- **Attachment:** a calendar invite (`invite.ics`). Opening it adds the call to
+  their calendar with a 15-minute reminder.
+
+After booking, the confirmation screen tells the customer whether the invite
+was sent. If it couldn't be sent, the booking is still confirmed.
+
+Customers **don't** get an email when you cancel, and the calendar invite
+isn't removed from their calendar automatically. Call them, as described in
+[Cancelling a booking](#cancelling-a-booking).
 
 ---
 
@@ -421,7 +481,9 @@ If a customer calls or emails asking for a callback, you can book it for them:
 1. Go to the public **Book a callback** page on the website (the same page
    customers use).
 2. Pick the day and time, and enter the customer's name and phone number.
-3. Submit.
+3. For email, enter the **customer's** email address if they'd like a calendar
+   invite, or leave it blank. Don't enter your own; the invite would go to you.
+4. Submit.
 
 The booking shows up on your Bookings page and sends the usual notification
 email, just like any other booking.
@@ -437,13 +499,18 @@ There's no "edit" or "move" button. Instead:
 Doing it in this order means the old slot isn't freed up until the new one is
 secured.
 
+If the customer has an email address on file, they'll get a new calendar
+invite for the new time. The old invite stays in their calendar, so ask them
+to delete it.
+
 ### Add or change who gets booking emails
 
 1. **Settings** → **Notify emails**.
 2. Add, remove, or edit addresses (one per line).
 3. Click **Save settings**.
-4. Optional: make a test booking on the public page to confirm the email
-   arrives, then cancel it from the Bookings page.
+4. Make a test booking to confirm the new addresses receive the email (see
+   [Check emails are arriving](#check-emails-are-arriving-do-this-when-you-first-start)),
+   then cancel it from the Bookings page.
 
 ---
 
@@ -463,8 +530,11 @@ secured.
 - **Past times are hidden automatically.** Customers never see slots that have
   already started.
 - **Changes take effect right away.** As soon as you save hours, overrides, or
-  settings, the public booking page uses them. Customers who already have the
-  page open see the change when they pick a day again or reload.
+  settings, the public booking page uses them. A customer who already has the
+  page open with a day selected keeps seeing that day's old times. Clicking
+  the same day again doesn't refresh it; they see the change when they pick a
+  _different_ day or reload the page. If they try to book a time you've just
+  closed, they're told it's no longer available and asked to pick another.
 - **The admin area is private.** It's hidden from search engines, and every
   page requires sign-in.
 
