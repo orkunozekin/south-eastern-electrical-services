@@ -1,6 +1,6 @@
 # 02 — Email customers when a booking is cancelled
 
-**Type:** Feature · **Size:** Large · **Depends on:** —
+**Type:** Feature · **Size:** Medium · **Depends on:** —
 
 ## Request
 
@@ -9,31 +9,53 @@
 
 ## Current state
 
-- **We don't collect customer email.** A booking is `name` + `phone` only
-  (`lib/booking/types.ts`). The original plan explicitly said "No customer
-  email field in v1". This feature needs a new field on the booking form.
+Already on `main` (from PR #3, "Send optional calendar invite email on
+booking"):
+
+- **Optional customer email.** The booking form has an optional Email field
+  (`components/booking-wizard.tsx`). It's validated and lower-cased in
+  `validateBookingFields`, and stored on `bookings/{id}.email` only when
+  given. `Booking.email?: string`, `AdminBookingDto.email` and
+  `BookingDto.email` are typed. The admin Bookings list shows it.
+- **Business notification** includes the customer email.
+- **Customer confirmation email** (`sendBookingConfirmation` in
+  `lib/plunk.ts`). Sent when an email is given, in the customer's timezone
+  (passed from the browser at booking time), with an `.ics` invite attached.
+  The invite is built by `buildCalendarInvite` in `lib/calendar-invite.ts` with
+  `METHOD:REQUEST`, `UID:booking-{id}@{sender domain}`, `SEQUENCE:0`.
+- **Shared sender** `sendViaPlunk` (API key, from address, idempotency key,
+  attachments). `PLUNK_FROM_EMAIL` on a verified domain is already required for
+  customer email.
+
+Not yet done:
+
 - **Cancelling** (`cancelBookingAction` → `cancelBooking` in
   `lib/booking/repository.ts`) marks the booking `cancelled` and frees the slot
-  in one transaction. Nobody is told.
-- **"Clearing"** today can only mean `scripts/clear-bookings.mjs`. That's a
-  developer script that deletes every `bookings` and `slots` document. There's
-  no clear action in the admin UI.
-- **Email:** `lib/plunk.ts` sends only the business notification. Real delivery
-  needs `PLUNK_FROM_EMAIL` on a verified domain. That's optional today, but
-  it's **required** for customer email: we can't email customers from an
-  unverified sender.
+  in one transaction. **The customer isn't told, and the calendar invite stays
+  in their calendar.**
+- **"Clearing"** can only mean `scripts/clear-bookings.mjs`, a developer
+  script that deletes every `bookings` and `slots` document. There's no clear
+  action in the admin UI.
+- **The customer's timezone isn't stored.** The confirmation uses the browser
+  timezone sent with the booking request, but it isn't saved, so a later
+  cancellation email can't reuse it.
 - **No site URL is configured,** so there's nothing to build a "reschedule"
   link from.
 - **No business phone number** appears on the site to put in the email.
+- **Consent wording:** the email field's hint says "Only needed if you'd like a
+  calendar invite for the call." Using the address for a cancellation notice
+  is closely related, but the hint should say so.
 
 ## Goals
 
-1. Customers can leave an email address when booking.
-2. When an admin cancels a future booking that has an email, the customer gets
+1. When an admin cancels a future booking that has an email, the customer gets
    an email saying it was cancelled, with a link to pick a new time.
+2. The same email **cancels the calendar invite**, so the call disappears from
+   the customer's calendar.
 3. The admin can see, before and after cancelling, whether the customer was or
    will be emailed. If they weren't, the admin knows to call.
-4. An email failure never blocks or rolls back the cancellation.
+4. An email failure never blocks or rolls back the cancellation (repo
+   non-negotiable in `AGENTS.md`).
 
 ## Non-goals
 
@@ -41,19 +63,17 @@
 - SMS. It would reach every customer, since phone is always collected, but it
   needs a new provider (e.g. Twilio) and consent handling. Worth a separate
   plan if the client wants it.
-- Emailing customers when bookings are _created_ (a confirmation email). This
-  is easy to add once the email field exists, but it's out of scope here.
-- Notifying from the clear-bookings script by default (see Phase 4).
+- Making email required.
+- Notifying from the clear-bookings script by default (see Phase 3).
 
 ## Decisions needed
 
-| Question                                         | Recommendation                                                                                                                                                                                                        |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Is customer email **required** or **optional**?  | **Optional.** A required email adds friction to a "leave your number and we'll call" flow. Label it "Email (optional). We'll only use it if we need to reschedule." Bookings without email fall back to a phone call. |
-| Which sending domain and from address?           | The client's domain, e.g. `bookings@<domain>`, verified in Plunk. Blocked until the site has a custom domain.                                                                                                         |
-| Reply-to address                                 | The first `notifyEmails` address, so customer replies reach the business.                                                                                                                                             |
-| Business phone number to include in the email    | Ask the client. Also worth adding to the site footer and contact page.                                                                                                                                                |
-| Should the admin be able to add a personal note? | Yes, an optional short message included in the email (e.g. "Sorry, I'm out on an emergency job").                                                                                                                     |
+| Question                                         | Recommendation                                                                                                               |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| Email field hint wording                         | "Optional. We'll send a calendar invite, and let you know if we need to reschedule. We'll still call your phone either way." |
+| Reply-to address                                 | The first `notifyEmails` address, so customer replies reach the business.                                                    |
+| Business phone number to include in the email    | Ask the client. Also worth adding to the site footer and contact page.                                                       |
+| Should the admin be able to add a personal note? | Yes, an optional short message included in the email (e.g. "Sorry, I'm out on an emergency job").                            |
 
 ## Design
 
@@ -61,46 +81,54 @@
 
 `bookings/{id}` gains:
 
-| Field                | Type                                      | Notes                                   |
-| -------------------- | ----------------------------------------- | --------------------------------------- |
-| `email`              | `string \| null`                          | Lower-cased and trimmed, optional       |
-| `cancelledAt`        | timestamp                                 | Already written, but not typed or read  |
-| `cancelNotice`       | `"sent" \| "failed" \| "skipped" \| null` | Result of the customer email            |
-| `cancelNoticeAt`     | timestamp \| null                         |                                         |
-| `cancelNoticeReason` | `string \| null`                          | Why skipped or failed, for the admin UI |
+| Field                | Type                                      | Notes                                                        |
+| -------------------- | ----------------------------------------- | ------------------------------------------------------------ |
+| `customerTimezone`   | `string`, optional                        | IANA zone from the booking request (already validated there) |
+| `cancelledAt`        | timestamp                                 | Already written, but not typed or read                       |
+| `cancelNotice`       | `"sent" \| "failed" \| "skipped" \| null` | Result of the customer email                                 |
+| `cancelNoticeAt`     | timestamp \| null                         |                                                              |
+| `cancelNoticeReason` | `string \| null`                          | Why skipped or failed, for the admin UI                      |
 
-Existing bookings have no `email`. `bookingFromDoc` treats a missing value as
-`null`. No migration is needed.
+`customerTimezone` is only written for new bookings. For existing bookings the
+cancellation email falls back to the business timezone, labelled with its
+abbreviation (e.g. "ET"). No migration is needed.
 
-Update `Booking`, `CreateBookingInput`, and `AdminBookingDto` to match.
+`submitBookingAction` already validates `input.timezone`. Pass it through
+`CreateBookingInput` and store it in the `createBooking` transaction.
 
-### Booking form
+### Calendar cancellation (`lib/calendar-invite.ts`)
 
-- `components/booking-wizard.tsx`: add an optional `type="email"` field under
-  Name and Phone.
-- `lib/booking/validation.ts`: `validateBookingFields(name, phone, email?)`.
-  Validate with the same regex as the admin settings action, and cap the length
-  at 254.
-- `createBooking` stores `email ?? null`.
-- Include the customer email in the **business** notification too, so the
-  business has it in their inbox.
+Extend `buildCalendarInvite` with:
 
-### Email sending (`lib/plunk.ts`)
+- `method: "REQUEST" | "CANCEL"` (default `REQUEST`)
+- `sequence: number` (default `0`)
 
-Refactor into:
+For `CANCEL`, emit `METHOD:CANCEL`, `STATUS:CANCELLED` and `SEQUENCE:1`, drop
+the `VALARM`, and keep **the same `UID`** as the original invite
+(`booking-{id}@{sender domain}`). Calendar clients match on `UID` and remove
+the event when the sequence is higher. Pull the UID construction out of
+`sendBookingConfirmation` into a shared `inviteUid(bookingId, fromEmail)`
+helper, so both emails always agree.
 
-- A private `sendViaPlunk({ to, subject, html, idempotencyKey, replyTo? })`
-  that holds the fetch, auth, and from-address logic currently inside
-  `sendBookingNotification`. Keep the dev console-logging behaviour.
-- `sendBookingNotification`: unchanged behaviour, now using the helper.
-- A new `sendCustomerCancellationEmail({ booking, whenLabel, message?, rescheduleUrl, businessPhone? })`
-  - To: `booking.email`
-  - Subject: `Your callback with Southeastern Electrical has been cancelled`
-  - Body: apology, the original time in the business timezone, the admin's
-    optional message (HTML-escaped), a prominent **"Pick a new time"** button
-    to `rescheduleUrl`, and the business phone if configured.
-  - Idempotency key: `cancel-${booking.id}`, so a retry can't double-send.
-  - Reply-to: the first business notify email.
+Only attach the cancellation `.ics` when the booking had an email at creation
+time, which is always true when we're emailing it.
+
+### Email (`lib/plunk.ts`)
+
+Add `sendCustomerCancellation({ booking, whenLabel, message?, rescheduleUrl, businessPhone?, replyTo? })`,
+built on the existing `sendViaPlunk`:
+
+- To: `booking.email`
+- Subject: `Your callback on {whenLabel} has been cancelled`
+- Body: apology, the original time, the admin's optional message
+  (HTML-escaped with the existing `escapeHtml`), a prominent **"Pick a new
+  time"** button to `rescheduleUrl`, and the business phone if configured.
+- Attachment: `cancel.ics` (`text/calendar; method=CANCEL`)
+- Idempotency key: `booking-cancel-${booking.id}`, so a retry can't
+  double-send.
+- Mirror the dev console logging used by the other two senders.
+
+`sendViaPlunk` needs a `replyTo` option; add it there.
 
 ### Reschedule link
 
@@ -134,7 +162,7 @@ cancelBookingAction(
    - the booking has already started ("booking time has passed")
    - Plunk isn't fully configured ("email not configured")
 3. Otherwise send the email. Catch errors and record `failed`.
-4. Write `cancelNotice*` fields to the booking.
+4. Write the `cancelNotice*` fields to the booking.
 5. Return the notice result so the UI can tell the admin what happened.
 
 Only the first cancel attempt sends an email. `cancelBooking` already returns
@@ -143,7 +171,8 @@ action doesn't re-send.
 
 ### Admin UI (`components/admin-bookings-list.tsx`)
 
-- Show the customer email under the phone number when present.
+The email is already shown on each row. Additionally:
+
 - Replace `window.confirm` with a small inline confirmation panel on the row:
   - "Cancel Jane Doe's callback on Tue, Oct 6 · 10:30 AM?"
   - Checkbox **"Email the customer asking them to reschedule"**: ticked and
@@ -152,79 +181,78 @@ action doesn't re-send.
   - An optional message textarea, visible when the checkbox is ticked.
   - **Cancel booking** / **Keep booking** buttons.
 - After cancelling, show the result:
-  - "Cancelled. Customer emailed."
+  - "Cancelled. Customer emailed and their calendar invite was cancelled."
   - "Cancelled. Email failed, please call the customer."
   - "Cancelled. No email on file, please call the customer."
 - In **Recent / cancelled**, show the notice status per booking
   ("customer emailed", "email failed", "not emailed").
 
-### Phase 4: "Clearing" (clear-bookings script)
+### Phase 3: "Clearing" (clear-bookings script)
 
-`scripts/clear-bookings.mjs` is a destructive developer reset. Emailing every
-customer by accident while clearing test data would be worse than not
+`scripts/clear-bookings.mjs` is a destructive developer reset, and
+`.env.local` points at the production project (see `AGENTS.md`). Emailing
+every customer by accident while clearing test data would be worse than not
 notifying, so:
 
 - Before deleting, print a count of **upcoming confirmed** bookings and require
   a `--yes` flag to proceed.
 - Add an opt-in `--notify` flag that emails upcoming customers who have an
-  email, reusing the same template. Since the script is plain `.mjs`, the
-  simplest way to share the template is a small `lib/emails/cancellation.mjs`
-  module imported by both. The alternative is converting the script to
-  TypeScript and running it with `tsx`.
+  email. The script is plain `.mjs` and can't import the TypeScript senders
+  directly, so either convert it to TypeScript and run it with `tsx`
+  (preferred, since it reuses `sendCustomerCancellation` and the `.ics`
+  builder unchanged) or call a small admin-only API route.
 - For the client, "cancel everything on a day or date range" should be an
   admin feature, not a script. That's covered in
   [03](./03-availability-conflicts.md) and reuses this cancel flow.
 
 ## Implementation steps
 
-**Phase 1: collect email**
+**Phase 1: sending**
 
-- [ ] Types: `email` on `Booking`, `CreateBookingInput`, `AdminBookingDto`,
-      `BookingDto`
-- [ ] Validation for optional email
-- [ ] `createBooking` stores `email`; `bookingFromDoc` reads it
-- [ ] Wizard email field and copy
-- [ ] Business notification includes the customer email
-
-**Phase 2: sending**
-
-- [ ] Refactor `lib/plunk.ts` into `sendViaPlunk` and existing notification
-- [ ] `sendCustomerCancellationEmail` and template
+- [ ] Store `customerTimezone` on new bookings
+- [ ] `buildCalendarInvite`: `method` / `sequence`; shared `inviteUid` helper
+- [ ] `sendViaPlunk`: `replyTo` option
+- [ ] `sendCustomerCancellation` and template with the `cancel.ics`
+      attachment
 - [ ] `SITE_URL` env var (and optionally `BUSINESS_PHONE`); update
       `.env.example`
-- [ ] Verify the sending domain in Plunk and set `PLUNK_FROM_EMAIL` in Vercel
+- [ ] Update the email field hint copy in the booking wizard
 
-**Phase 3: cancel flow and UI**
+**Phase 2: cancel flow and UI**
 
 - [ ] `cancelBooking` reports whether it actually changed status
 - [ ] `cancelBookingAction(id, options)` with notice recording
 - [ ] Admin confirmation panel, result messages, notice status in the list
 - [ ] `/book?ref=cancelled` heading variant
 
-**Phase 4: script**
+**Phase 3: script**
 
 - [ ] `--yes` guard and upcoming count
 - [ ] Optional `--notify`
 
 **Docs**
 
-- [ ] Update `docs/admin-guide.md`: §1 (customers may leave an email), §4
-      cancelling (new panel, customers are emailed), §7 (customer
-      cancellation email), §8 reschedule recipe, §9 ("customers can't cancel"
-      stays; "customer is not notified" changes), troubleshooting row for
+- [ ] Update `docs/admin-guide.md`: §4 cancelling (new panel; customers are
+      emailed and their invite is removed), §7 "Emails customers receive",
+      §8 reschedule recipe (the old invite is removed automatically when the
+      old booking is cancelled with notify on), troubleshooting row for
       "email failed"
 - [ ] Update `PLAN.md`: remove "No customer email field in v1" and "Customer
-      confirmation emails" from out-of-scope as appropriate
+      confirmation emails" from out-of-scope
 
 ## Testing
 
-Manual (with `BOOKING_NOTIFY_CONSOLE=true` locally, then real Plunk on a
-preview deploy):
+Manual, with `BOOKING_NOTIFY_CONSOLE=true` locally, then real Plunk on a
+preview deploy. Per `AGENTS.md`, don't create test bookings against the
+production project without the owner's OK.
 
 - [ ] Booking without email: cancel panel shows "No email on file"; nothing is
       sent; status is `skipped`
 - [ ] Booking with email: customer receives the email with the correct local
       time, the admin message, and a working link
+- [ ] Calendar removal: book with a Gmail and an Outlook/iCloud address, add
+      the invite, cancel, and confirm the event is removed or marked cancelled
+      in each client
 - [ ] Untick "Email the customer": nothing is sent; status is `skipped`
 - [ ] Simulate a Plunk failure (bad API key on preview): the booking is still
       cancelled, the slot is freed, the UI says "Email failed", status is
@@ -233,14 +261,18 @@ preview deploy):
 - [ ] Double-clicking Cancel sends only one email (idempotency key + status
       check)
 - [ ] An HTML or script tag in the admin message is escaped in the email
-- [ ] Invalid email on the booking form shows a clear error; an empty email
-      is accepted
+- [ ] A booking made before `customerTimezone` existed gets a
+      business-timezone time with its abbreviation
 
 ## Risks
 
-- **Deliverability:** a new domain may land in spam. Set up SPF/DKIM through
-  Plunk's domain verification, and keep the email plain and transactional.
-- **Privacy:** we're now storing customer emails. Only use them for this
-  booking. The site has no privacy policy page; consider adding one.
+- **Calendar client differences:** Google, Outlook, and Apple Calendar all
+  honour `METHOD:CANCEL` with a matching `UID`, but some webmail clients only
+  show it as a notice. The email body must say the call is cancelled on its
+  own terms, without relying on the attachment.
+- **Sender domain changes:** the invite `UID` includes the sender domain. If
+  `PLUNK_FROM_EMAIL` changes domain between booking and cancelling, the
+  cancellation won't match. Consider storing the UID on the booking when the
+  confirmation is sent.
 - **Low uptake:** if few customers leave an email, admins still need to call.
   The UI makes that explicit rather than implying everyone was notified.

@@ -20,6 +20,14 @@ new grid:
 The same applies the other way (60 → 30 frees the second half of each existing
 booking) and when weekly start times move off the old grid (e.g. 9:00 → 9:15).
 
+**Changing the business timezone** causes the same problem, because slot IDs
+use the local time in the business timezone. A 10:00 AM Eastern booking is
+`…_1000`. After switching to Central, the same moment is the 9:00 AM Central
+slot (`…_0900`), which isn't marked booked, so it's offered again. Meanwhile
+the unrelated 10:00 AM Central slot is wrongly treated as taken. The overlap
+check below fixes this too, because it compares real times rather than
+local-time IDs.
+
 A related problem: **blocked slots** in overrides are matched against the grid
 by exact `HH:mm`. After a slot-length change, or when mistyped (e.g. `09:15`),
 they silently block nothing.
@@ -59,26 +67,68 @@ sufficient.
 
 Today the transaction locks one `slots/{slotId}` document. Two requests for
 _different_ but overlapping slots (e.g. 9:00–10:00 and 9:30–10:00 during a
-grid change) would lock different documents and both succeed.
+grid change) lock different documents, so both can succeed.
 
-Fix: inside the `createBooking` transaction, also run a transactional query:
+A transactional query for overlapping bookings isn't enough on its own either.
+If two overlapping requests run at the same moment, each query can see no
+existing booking, and the two transactions write different documents, so
+neither conflicts with the other. Both would commit.
 
-```ts
-const overlapping = await tx.get(
-  db
-    .collection("bookings")
-    .where("startsAt", "<", Timestamp.fromDate(match.endsAt))
-    .where("startsAt", ">=", Timestamp.fromDate(dayStartUtc)),
-);
-// reject if any confirmed doc has endsAt > match.startsAt
-```
+Fix: give every booking transaction **one shared document to contend on per
+business day**, then check for overlaps while holding it.
 
-The Admin SDK supports queries in transactions, and they conflict correctly
-with concurrent writes. Keep the existing slot-document lock as well; it's
-cheap, and it's the fast path for the common same-grid case.
+1. **Day lock document:** `bookingDays/{yyyy-MM-dd}`, keyed by the booking's
+   start date in the business timezone (the same date prefix `slotIdForStart`
+   already uses).
+2. In the `createBooking` transaction, in this order:
+   1. `tx.get(dayRef)`. The document may not exist yet; Firestore still tracks
+      the read.
+   2. `tx.get(slotRef)`, the existing exact-slot check (kept as a fast
+      rejection).
+   3. Query overlapping bookings:
 
-This is a range query on a single field (`startsAt`), so it needs no composite
+      ```ts
+      const overlapping = await tx.get(
+        db
+          .collection("bookings")
+          .where(
+            "startsAt",
+            ">=",
+            Timestamp.fromDate(subMinutes(match.startsAt, MAX_SLOT_MINUTES)),
+          )
+          .where("startsAt", "<", Timestamp.fromDate(match.endsAt)),
+      );
+      // reject if any doc has status "confirmed" and endsAt > match.startsAt
+      ```
+
+      `MAX_SLOT_MINUTES` is 120, the highest slot length Settings allows. That
+      bounds how early an overlapping booking can start, so the query doesn't
+      depend on day boundaries.
+
+   4. Write the booking, the slot document, and
+      `tx.set(dayRef, { lastBookingAt: now, count: FieldValue.increment(1) }, { merge: true })`.
+
+Every booking on a day writes the same day document, so two concurrent
+bookings on that day always conflict. Firestore aborts and retries one of them,
+including when both read the day document before it existed. On retry, its
+overlap query sees the other booking and rejects it with the usual "That time
+slot is no longer available." At this business's volume, serialising bookings
+per day costs nothing noticeable.
+
+The range query is on a single field (`startsAt`), so it needs no composite
 index.
+
+**Why a per-day key is enough.** The day document only has to serialise
+bookings that are _in flight at the same time_. Bookings that already exist are
+found by the overlap query, which compares real times, so it works across slot
+length and timezone changes. Two concurrent overlapping requests are computed
+with the same settings. Slots never cross midnight in the business timezone,
+so both requests get the same date key and contend on the same document. The
+only gap is a settings change landing between two in-flight requests, which is
+a window of milliseconds.
+
+`cancelBooking` doesn't need to touch the day document: freeing time can't
+create an overlap.
 
 ### Validate blocked slots on save
 
@@ -100,7 +150,8 @@ preview covers any that end up outside availability.
 
 - [ ] `getAvailableSlots` takes booked ranges and filters by overlap
 - [ ] `getBookedRangesForDate` replaces `getTakenSlotIdsForDate`
-- [ ] `createBooking` transaction: add an overlapping-bookings query
+- [ ] `createBooking` transaction: read and write a `bookingDays/{date}` lock
+      document, then run the overlapping-bookings query before writing
 - [ ] `saveOverrideAction`: validate blocked slots against the generated grid
 - [ ] Settings: notice when upcoming bookings exist and slot length changes
 - [ ] Unit tests for overlap filtering (if Vitest is added)
@@ -120,8 +171,13 @@ Manual:
 
 - [ ] Book 9:30 on 30-minute slots, switch to 60: 9:00 isn't offered on
       `/book`
-- [ ] Two browsers booking overlapping slots at the same time: exactly one
-      succeeds
+- [ ] Change the business timezone with a booking at 10:00 AM ET: the
+      equivalent 9:00 AM CT slot isn't offered, and 10:00 AM CT is
+- [ ] Concurrency: a local script against the **Firestore emulator** (not
+      production; see `AGENTS.md`) that calls `createBooking` many times in
+      parallel for overlapping slots with different IDs (e.g. 9:00–10:00 and
+      9:30–10:00). Exactly one succeeds each time. Run it with and without the
+      day document, to confirm the test catches the bug.
 - [ ] Block `09:15` on a 30-minute grid: rejected with the list of valid times
 
 ## Risks
@@ -130,5 +186,8 @@ Manual:
   the slot document. With bookings as the source of truth, stale `slots` docs
   can't block anything, so this is fine. The lock document just gets
   overwritten on the next booking.
+- **New collection:** `bookingDays` holds one small document per day that has
+  had a booking. It needs no cleanup, and `scripts/clear-bookings.mjs` should
+  delete it alongside `bookings` and `slots`.
 - **Behaviour change in one function:** both `/book` and `createBooking` use
   `getAvailableSlots`, so one change fixes both paths. Test both.

@@ -81,6 +81,11 @@ works).
   Mon–Fri to the real list.
 - Don't fetch slots until the calendar has loaded. Otherwise the first slot
   fetch runs against a default date that may be replaced a moment later.
+- **Refetch when the selected day is clicked again.** Today slots load only in
+  a `useEffect` keyed on `selectedDate`, so clicking the already-selected day
+  does nothing, and a customer who's had the page open a while keeps seeing
+  stale times. Keep a `slotsRequestId` counter that `selectDate` increments on
+  every click, and include it in the effect's dependencies.
 
 ### Page (`app/(site)/book/page.tsx` / `data.ts`)
 
@@ -99,9 +104,11 @@ only.
 - [ ] Remove `revalidatePath("/book")` calls in `app/actions/admin.ts` if
       they're no longer meaningful (the page has no server-fetched data).
       Harmless either way, so optional.
+- [ ] Wizard: refetch slots when the selected day is clicked again
 - [ ] Update `docs/admin-guide.md`: remove the weekends note in §5.1 and the
       "weekdays only" note in §9, and remove "offering weekend callbacks" from
-      §11.
+      §11. In the §9 "Changes take effect right away" item, drop the
+      "clicking the same day again doesn't refresh it" caveat.
 
 ## Testing
 

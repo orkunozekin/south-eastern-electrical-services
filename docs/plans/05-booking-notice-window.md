@@ -45,10 +45,18 @@ behaviour until they choose.
   `slot.startsAt <= addMinutes(now, settings.minNoticeMinutes)`.
 - `getBookableDateStrings(settings, settings.bookingWindowDays, now)`: pass the
   setting through from plan 01's `fetchBookingCalendarAction`.
-- `createBooking` already re-checks via `listAvailableSlots`, so the notice is
-  enforced server-side automatically. Add a window check there too (reject
-  dates beyond `bookingWindowDays`), because `fetchSlotsAction` accepts any
-  valid date string.
+- **Window check in `listAvailableSlots`** (`lib/booking/repository.ts`): if
+  the date is before today or after the last date in the window (both in the
+  business timezone), return `[]`. Both public paths go through this one
+  function:
+  - `fetchSlotsAction` → `listAvailableSlots`, so an out-of-window date shows
+    "No open times on this day" instead of offering slots that would fail on
+    submit.
+  - `createBooking` → `listAvailableSlots`, so a direct submission for an
+    out-of-window time is rejected with the usual "That time slot is no longer
+    available."
+- The notice filter lives in `getAvailableSlots`, which `listAvailableSlots`
+  calls, so it's enforced on both paths the same way.
 
 ### Booking window behaviour
 
@@ -108,7 +116,8 @@ In `components/admin-settings-form.tsx` and `saveAdminSettingsAction`:
 - [ ] Types, defaults, `mergeSettings`, `saveBookingSettings`
 - [ ] `getAvailableSlots` notice filter
 - [ ] Window from settings in `fetchBookingCalendarAction` (plan 01)
-- [ ] Window check in `createBooking`
+- [ ] Window check in `listAvailableSlots` (covers both `fetchSlotsAction`
+      and `createBooking`)
 - [ ] Settings form fields and action validation
 - [ ] Booking window control: quick picks, custom days input, "through
       <date>" help text, shrink note
@@ -124,8 +133,9 @@ In `components/admin-settings-form.tsx` and `saveAdminSettingsAction`:
 
 - [ ] Notice set to 2 hours: slots within 2 hours of now aren't offered, and
       submitting one directly is rejected
-- [ ] Window set to 30 days: `/book` shows 30 days of dates, and day 31 is
-      rejected by `fetchSlotsAction` / `createBooking`
+- [ ] Window set to 30 days: `/book` shows 30 days of dates. Calling
+      `fetchSlotsAction` directly for day 31 returns no slots, and submitting
+      a day-31 time to `submitBookingAction` is rejected.
 - [ ] Extend 14 → 60: new dates appear on `/book` without a redeploy, and the
       week navigation appears
 - [ ] Shrink 14 → 7 with a booking on day 10: day 10 disappears from `/book`,
