@@ -111,6 +111,9 @@ function bookingFromDoc(doc: QueryDocumentSnapshot): Booking {
     id: doc.id,
     name: String(data.name),
     phone: String(data.phone),
+    ...(typeof data.email === "string" && data.email
+      ? { email: data.email }
+      : {}),
     startsAt: toDate(data.startsAt),
     endsAt: toDate(data.endsAt),
     status: data.status as BookingStatus,
@@ -301,7 +304,7 @@ export async function getBooking(id: string): Promise<Booking | null> {
 export async function createBooking(
   input: CreateBookingInput,
 ): Promise<Booking> {
-  const fields = validateBookingFields(input.name, input.phone);
+  const fields = validateBookingFields(input.name, input.phone, input.email);
   if (!fields.ok) {
     throw new BookingError(fields.error, "VALIDATION");
   }
@@ -353,6 +356,7 @@ export async function createBooking(
     tx.set(bookingRef, {
       name: fields.value.name,
       phone: fields.value.phone,
+      ...(fields.value.email ? { email: fields.value.email } : {}),
       startsAt: Timestamp.fromDate(match.startsAt),
       endsAt: Timestamp.fromDate(match.endsAt),
       status: "confirmed" satisfies BookingStatus,

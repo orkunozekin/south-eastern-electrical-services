@@ -67,6 +67,9 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
                     {bookingWhenLabel(booking.startsAt, viewerTimezone)}
                   </p>
                   <p className="text-slate text-sm">{booking.phoneDisplay}</p>
+                  {booking.email && (
+                    <p className="text-slate text-sm">{booking.email}</p>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -104,6 +107,9 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
                   {bookingWhenLabel(booking.startsAt, viewerTimezone)}
                 </p>
                 <p className="text-slate text-sm">{booking.phoneDisplay}</p>
+                {booking.email && (
+                  <p className="text-slate text-sm">{booking.email}</p>
+                )}
               </li>
             ))}
           </ul>
