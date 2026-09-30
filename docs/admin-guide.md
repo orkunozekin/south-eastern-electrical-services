@@ -64,8 +64,7 @@ automatically hides anything already booked or already in the past.
 ### Signing in
 
 1. Go to the admin sign-in page:
-   **https://south-eastern-electrical-services.vercel.app/admin/login**
-   (If the website moves to its own domain, it will be `yourdomain.com/admin`.)
+   **https://southeasternelectrical.org/admin/login**
 2. Enter the **email** and **password** your developer set up for you.
 3. Click **Sign in**.
 
