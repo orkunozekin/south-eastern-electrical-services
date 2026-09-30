@@ -232,10 +232,11 @@ export function BookingWizard({
                 key={date}
                 type="button"
                 onClick={() => selectDate(date)}
-                className={`min-w-[5.5rem] shrink-0 cursor-pointer px-3 py-3 text-left transition ${active
+                className={`min-w-[5.5rem] shrink-0 cursor-pointer px-3 py-3 text-left transition ${
+                  active
                     ? "bg-amber text-navy-deep"
                     : "bg-white/10 text-white hover:bg-white/15"
-                  }`}
+                }`}
               >
                 <span className="block text-xs font-semibold tracking-wide uppercase opacity-80">
                   {chip.weekday}
@@ -285,10 +286,11 @@ export function BookingWizard({
                 key={slot.slotId}
                 type="button"
                 onClick={() => setSelectedSlot(slot)}
-                className={`cursor-pointer px-3 py-3 text-sm font-semibold tracking-wide transition ${active
+                className={`cursor-pointer px-3 py-3 text-sm font-semibold tracking-wide transition ${
+                  active
                     ? "bg-amber text-navy-deep scale-[1.03] shadow-[0_0_0_2px_color-mix(in_srgb,var(--amber-hot)_80%,transparent)]"
                     : "bg-white/10 text-white hover:bg-white/15"
-                  }`}
+                }`}
               >
                 {slotTimeLabel(slot.startsAt, viewerTimezone)}
               </button>
@@ -359,8 +361,8 @@ export function BookingWizard({
                 placeholder="jane@example.com"
               />
               <span id="email-hint" className="text-mist/60 mt-2 block text-sm">
-                Only needed if you’d like a calendar invite for the call. We’ll
-                still call your phone either way.
+                Optional. We’ll send a calendar invite, and let you know if we
+                need to reschedule. We’ll still call your phone either way.
               </span>
             </label>
           </div>

@@ -145,8 +145,9 @@ shows:
 
 Callbacks from **the last 7 days** that have already passed, plus any bookings
 that were cancelled. Each entry is marked as either `confirmed` (the callback
-time has passed) or `cancelled`. Anything older than 7 days drops off this list
-automatically.
+time has passed) or `cancelled`. Cancelled bookings also say whether the
+customer was told: `customer emailed`, `email failed`, or `not emailed` with the
+reason. Anything older than 7 days drops off this list automatically.
 
 ### About the times shown
 
@@ -158,23 +159,36 @@ time. The label always tells you which timezone you're looking at.
 ### Cancelling a booking
 
 1. Find the booking under **Upcoming**.
-2. Click **Cancel**.
-3. A pop-up asks **"Cancel this callback booking?"** Click **OK** to confirm,
-   or **Cancel** to go back without changing anything.
+2. Click **Cancel**. A panel opens under the booking asking, for example,
+   **"Cancel Jane Doe's callback on Tue, Oct 6 · 10:30 AM ET?"**
+3. If the customer left an email address, **Email the customer asking them to
+   reschedule** is ticked. Untick it if you'd rather call them yourself. If
+   there's no email on file, the box is greyed out and shows the number to
+   call.
+4. Optionally type a short **message to the customer**, e.g. "Sorry, I'm out
+   on an emergency job." It's included in the email as written.
+5. Click **Cancel booking** to confirm, or **Keep booking** to go back without
+   changing anything.
 
 What happens:
 
 - The booking moves to **Recent / cancelled** and is marked `cancelled`.
 - That time slot **immediately becomes available again** on the public
   calendar, so another customer can book it.
+- If the email box was ticked, the customer gets an email saying the call is
+  cancelled, with a **Pick a new time** button that takes them to the booking
+  page. The same email **removes the calendar invite** from their calendar.
+- A message at the top of the page tells you what happened, e.g.
+  "Cancelled. Jane Doe was emailed and their calendar invite was cancelled." or
+  "Cancelled. No email on file, please call Jane Doe at (555) 123-4567."
 
 Important:
 
-- **The customer is not notified.** The website doesn't send a cancellation
-  email or text. If you cancel, please call the customer to let them know. If
-  they left an email address, they received a calendar invite when they booked,
-  and it **stays in their calendar** after you cancel. Ask them to delete it
-  when you call.
+- **If the message says to call the customer, please call them.** That
+  happens when there's no email on file, you unticked the box, or the email
+  couldn't be sent. The booking is cancelled either way.
+- **Customers aren't texted.** Only customers who left an email are notified
+  automatically.
 - **Cancelling can't be undone.** If you cancel by mistake, re-book the
   customer yourself (see
   [Booking on behalf of a customer](#booking-on-behalf-of-a-customer)).
@@ -409,8 +423,9 @@ but no email is sent and you won't see a warning.** So:
    - every address on your Notify emails list receives the notification
      (check spam or junk too)
    - your own email address receives the confirmation and calendar invite
-3. **Cancel** the test booking from the Bookings page, and delete the test
-   invite from your calendar.
+3. **Cancel** the test booking from the Bookings page with **Email the
+   customer** ticked. Confirm you receive the cancellation email and the test
+   invite disappears from your calendar.
 
 If any email doesn't arrive after 10 minutes (including spam), contact your
 developer.
@@ -419,7 +434,8 @@ developer.
 
 - **Check your spam or junk folder** the first time, and mark the email as
   "Not spam" so future ones land in your inbox.
-- **Emails are sent when someone books, but not when a booking is cancelled.**
+- **You're emailed when someone books, but not when you cancel.** The
+  customer is emailed when you cancel (see below).
 - Your developer may also have set up an address behind the scenes that
   always gets a copy. Removing addresses in Settings won't stop that one; ask
   your developer if you want it changed.
@@ -438,9 +454,18 @@ email:
 After booking, the confirmation screen tells the customer whether the invite
 was sent. If it couldn't be sent, the booking is still confirmed.
 
-Customers **don't** get an email when you cancel, and the calendar invite
-isn't removed from their calendar automatically. Call them, as described in
-[Cancelling a booking](#cancelling-a-booking).
+When you cancel with **Email the customer** ticked, they're sent a
+cancellation email:
+
+- **Subject:** `Your callback on Tuesday, Oct 6 · 10:30 AM ET has been cancelled`
+- **Contents:** an apology, the original time, your message (if you wrote
+  one), and a **Pick a new time** button that opens the booking page.
+- **Attachment:** a calendar update (`cancel.ics`) that removes the call from
+  their calendar. Some webmail apps show it as a notice instead of removing it
+  automatically; the email itself still says the call is cancelled.
+- **Replies** go to the first address on your Notify emails list.
+
+See [Cancelling a booking](#cancelling-a-booking).
 
 ---
 
@@ -501,8 +526,11 @@ Doing it in this order means the old slot isn't freed up until the new one is
 secured.
 
 If the customer has an email address on file, they'll get a new calendar
-invite for the new time. The old invite stays in their calendar, so ask them
-to delete it.
+invite for the new time. When you cancel the old booking, you can untick
+**Email the customer** (you've already arranged the new time), but leaving it
+ticked is what removes the old invite from their calendar. If you leave it
+ticked, add a message such as "Your new time is Thursday at 2 PM" so the email
+isn't confusing.
 
 ### Add or change who gets booking emails
 
@@ -554,6 +582,7 @@ to delete it.
 | A day shows "No open times on this day" for customers           | That day is fully booked, or all remaining times have already passed today. (Unticked days and days closed by an override don't appear at all.)                       |
 | Not receiving booking emails                                    | Check spam/junk, then check the addresses on the Settings page. The booking will still be on the Bookings page. If emails still don't arrive, contact your developer. |
 | A new booking isn't on the Bookings page                        | Refresh the page.                                                                                                                                                     |
+| "Cancelled. Email failed, please call the customer."            | The booking is cancelled and the slot is free, but the customer wasn't told. Call them. If it keeps happening, contact your developer.                                |
 | "Booking is temporarily unavailable" or "Something went wrong." | Try again in a minute. If it keeps happening, contact your developer; something may need attention behind the scenes.                                                 |
 
 ---

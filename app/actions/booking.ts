@@ -162,10 +162,14 @@ export async function submitBookingAction(input: {
 
     try {
       const settings = await getBookingSettings();
+      const customerTimezone = isValidTimezone(input.timezone)
+        ? input.timezone
+        : undefined;
       const booking = await createBooking({
         name: input.name,
         phone: input.phone,
         email: input.email,
+        timezone: customerTimezone,
         startsAt,
       });
 
@@ -177,7 +181,7 @@ export async function submitBookingAction(input: {
       );
       const customerLabel = formatWithShortZone(
         booking.startsAt,
-        isValidTimezone(input.timezone) ? input.timezone : settings.timezone,
+        customerTimezone ?? settings.timezone,
         "EEEE, MMM d · h:mm a",
       );
 
@@ -208,7 +212,7 @@ export async function submitBookingAction(input: {
       if (booking.email) {
         calendarInvite =
           confirmResult.status === "fulfilled" &&
-            confirmResult.value !== "skipped"
+          confirmResult.value !== "skipped"
             ? "sent"
             : "failed";
       }
