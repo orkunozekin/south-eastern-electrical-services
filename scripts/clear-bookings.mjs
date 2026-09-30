@@ -1,11 +1,12 @@
 /**
- * Clears all Firestore booking + slot docs.
+ * Clears all Firestore booking + slot docs. Customers are NOT notified.
  *
  * Usage (from project root):
- *   node --env-file=.env.local scripts/clear-bookings.mjs
+ *   node --env-file=.env.local scripts/clear-bookings.mjs        # dry run
+ *   node --env-file=.env.local scripts/clear-bookings.mjs --yes  # delete
  */
 import { cert, getApps, initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
 
 function privateKey() {
   let key = process.env.FIREBASE_PRIVATE_KEY ?? "";
@@ -42,6 +43,25 @@ async function deleteCollection(name) {
   }
 
   console.log(`Done: ${name} (${total} docs)`);
+}
+
+const upcoming = (
+  await db.collection("bookings").where("startsAt", ">=", Timestamp.now()).get()
+).docs.filter((doc) => doc.data().status === "confirmed");
+const withEmail = upcoming.filter((doc) => doc.data().email).length;
+
+console.log(
+  `Project ${process.env.FIREBASE_PROJECT_ID}: ${upcoming.length} upcoming confirmed booking(s), ${withEmail} with an email.`,
+);
+if (upcoming.length > 0) {
+  console.log(
+    "These customers will NOT be emailed. Cancel them from the admin Bookings page instead if they should be told.",
+  );
+}
+
+if (!process.argv.includes("--yes")) {
+  console.log("Dry run. Re-run with --yes to delete all bookings and slots.");
+  process.exit(0);
 }
 
 await deleteCollection("bookings");

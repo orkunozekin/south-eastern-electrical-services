@@ -7,7 +7,25 @@ export type CalendarInviteInput = {
   location: string;
   organizer: { name: string; email: string };
   attendee: { name: string; email: string };
+  /** `CANCEL` removes the event with the same `uid` from the calendar. */
+  method?: "REQUEST" | "CANCEL";
+  /** Must be higher than the original invite's for a `CANCEL` to apply. */
+  sequence?: number;
 };
+
+const FALLBACK_UID_DOMAIN = "southeastern-electrical.invalid";
+
+/**
+ * Only call this when a booking is created. Later emails must reuse the
+ * stored UID, because the sender domain can change after booking.
+ */
+export function buildInviteUid(
+  bookingId: string,
+  senderEmail: string | undefined,
+): string {
+  const domain = senderEmail?.trim().split("@")[1] || FALLBACK_UID_DOMAIN;
+  return `booking-${bookingId}@${domain}`;
+}
 
 /** `20260928T150000Z` — RFC 5545 UTC date-time. */
 function formatUtc(date: Date): string {
@@ -54,12 +72,15 @@ function foldLine(line: string): string {
 
 export function buildCalendarInvite(input: CalendarInviteInput): string {
   const { organizer, attendee } = input;
+  const method = input.method ?? "REQUEST";
+  const cancel = method === "CANCEL";
+  const sequence = input.sequence ?? (cancel ? 1 : 0);
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//Southeastern Electrical Services//Booking//EN",
     "CALSCALE:GREGORIAN",
-    "METHOD:REQUEST",
+    `METHOD:${method}`,
     "BEGIN:VEVENT",
     `UID:${input.uid}`,
     `DTSTAMP:${formatUtc(new Date())}`,
@@ -70,14 +91,18 @@ export function buildCalendarInvite(input: CalendarInviteInput): string {
     `LOCATION:${escapeText(input.location)}`,
     `ORGANIZER;CN=${escapeParam(organizer.name)}:mailto:${organizer.email}`,
     `ATTENDEE;CN=${escapeParam(attendee.name)};ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE:mailto:${attendee.email}`,
-    "STATUS:CONFIRMED",
-    "SEQUENCE:0",
+    `STATUS:${cancel ? "CANCELLED" : "CONFIRMED"}`,
+    `SEQUENCE:${sequence}`,
     "TRANSP:OPAQUE",
-    "BEGIN:VALARM",
-    "ACTION:DISPLAY",
-    "DESCRIPTION:Southeastern Electrical callback",
-    "TRIGGER:-PT15M",
-    "END:VALARM",
+    ...(cancel
+      ? []
+      : [
+          "BEGIN:VALARM",
+          "ACTION:DISPLAY",
+          "DESCRIPTION:Southeastern Electrical callback",
+          "TRIGGER:-PT15M",
+          "END:VALARM",
+        ]),
     "END:VEVENT",
     "END:VCALENDAR",
   ];

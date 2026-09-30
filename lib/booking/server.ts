@@ -9,6 +9,7 @@ export {
   listAvailabilityOverrides,
   listAvailableSlots,
   listBookings,
+  recordCancelNotice,
   saveAvailabilityOverride,
   saveBookingSettings,
 } from "./repository";

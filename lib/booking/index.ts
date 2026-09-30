@@ -15,6 +15,7 @@ export type {
   Booking,
   BookingSettings,
   BookingStatus,
+  CancelNotice,
   CreateBookingInput,
   DayOfWeek,
   Slot,

@@ -94,7 +94,9 @@ Env: `PLUNK_API_KEY`, `BOOKING_NOTIFY_EMAIL`
 2. Slot generation: weekly hours + overrides − non-cancelled bookings
 3. Double-book guard: Firestore transaction
 4. Admin session: Auth cookie / verify on `/admin/*` and admin APIs
-5. No customer email field in v1
+5. Optional customer email: confirmation with calendar invite, and a
+   cancellation email that removes the invite
+   ([plan 02](docs/plans/02-customer-cancel-email.md))
 
 ## Env to provision
 
@@ -105,7 +107,7 @@ Env: `PLUNK_API_KEY`, `BOOKING_NOTIFY_EMAIL`
 
 ## Out of scope (v1)
 
-- Customer confirmation emails / SMS
+- SMS to customers
 - Google Calendar sync
 - Online payments
 - Multi-staff calendars

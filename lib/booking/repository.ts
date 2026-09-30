@@ -7,6 +7,7 @@ import {
 } from "firebase-admin/firestore";
 import { formatInTimeZone } from "date-fns-tz";
 
+import { buildInviteUid } from "@/lib/calendar-invite";
 import { getAdminDb } from "@/lib/firebase/admin";
 
 import {
@@ -20,6 +21,7 @@ import type {
   Booking,
   BookingSettings,
   BookingStatus,
+  CancelNotice,
   CreateBookingInput,
   Slot,
   TimeRange,
@@ -88,7 +90,7 @@ function mergeSettings(data: DocumentData | undefined): BookingSettings {
         : DEFAULT_BOOKING_SETTINGS.timezone,
     slotDurationMinutes:
       typeof data.slotDurationMinutes === "number" &&
-        data.slotDurationMinutes > 0
+      data.slotDurationMinutes > 0
         ? data.slotDurationMinutes
         : DEFAULT_BOOKING_SETTINGS.slotDurationMinutes,
     weeklyHours:
@@ -105,20 +107,36 @@ function toDate(value: unknown): Date {
   throw new Error("Expected Firestore Timestamp");
 }
 
+function optionalString(key: string, value: unknown) {
+  return typeof value === "string" && value ? { [key]: value } : {};
+}
+
+function asCancelNotice(value: unknown): CancelNotice | undefined {
+  return value === "sent" || value === "failed" || value === "skipped"
+    ? value
+    : undefined;
+}
+
 function bookingFromDoc(doc: QueryDocumentSnapshot): Booking {
   const data = doc.data();
+  const cancelNotice = asCancelNotice(data.cancelNotice);
   return {
     id: doc.id,
     name: String(data.name),
     phone: String(data.phone),
-    ...(typeof data.email === "string" && data.email
-      ? { email: data.email }
-      : {}),
+    ...optionalString("email", data.email),
+    ...optionalString("customerTimezone", data.customerTimezone),
+    ...optionalString("inviteUid", data.inviteUid),
     startsAt: toDate(data.startsAt),
     endsAt: toDate(data.endsAt),
     status: data.status as BookingStatus,
     createdAt: toDate(data.createdAt),
     slotId: String(data.slotId),
+    ...(data.cancelledAt instanceof Timestamp
+      ? { cancelledAt: data.cancelledAt.toDate() }
+      : {}),
+    ...(cancelNotice ? { cancelNotice } : {}),
+    ...optionalString("cancelNoticeReason", data.cancelNoticeReason),
   };
 }
 
@@ -366,7 +384,16 @@ export async function createBooking(
     tx.set(bookingRef, {
       name: fields.value.name,
       phone: fields.value.phone,
-      ...(fields.value.email ? { email: fields.value.email } : {}),
+      ...(fields.value.email
+        ? {
+            email: fields.value.email,
+            inviteUid: buildInviteUid(
+              bookingRef.id,
+              process.env.PLUNK_FROM_EMAIL,
+            ),
+          }
+        : {}),
+      ...(input.timezone ? { customerTimezone: input.timezone } : {}),
       startsAt: Timestamp.fromDate(match.startsAt),
       endsAt: Timestamp.fromDate(match.endsAt),
       status: "confirmed" satisfies BookingStatus,
@@ -382,11 +409,17 @@ export async function createBooking(
   return created;
 }
 
-export async function cancelBooking(id: string): Promise<Booking> {
+/**
+ * `changed` is false when the booking was already cancelled, so callers can
+ * avoid repeating side effects such as emailing the customer.
+ */
+export async function cancelBooking(
+  id: string,
+): Promise<{ booking: Booking; changed: boolean }> {
   const db = getAdminDb();
   const bookingRef = db.collection(COLLECTIONS.bookings).doc(id);
 
-  await db.runTransaction(async (tx) => {
+  const changed = await db.runTransaction(async (tx) => {
     const snap = await tx.get(bookingRef);
     if (!snap.exists) {
       throw new BookingError("Booking not found.", "NOT_FOUND");
@@ -394,7 +427,7 @@ export async function cancelBooking(id: string): Promise<Booking> {
 
     const data = snap.data()!;
     if (data.status === "cancelled") {
-      return;
+      return false;
     }
 
     const slotId = String(data.slotId);
@@ -407,11 +440,24 @@ export async function cancelBooking(id: string): Promise<Booking> {
       { booked: false, bookingId: null },
       { merge: true },
     );
+    return true;
   });
 
   const updated = await getBooking(id);
   if (!updated) {
     throw new BookingError("Booking not found.", "NOT_FOUND");
   }
-  return updated;
+  return { booking: updated, changed };
+}
+
+export async function recordCancelNotice(
+  id: string,
+  notice: CancelNotice,
+  reason: string | null,
+): Promise<void> {
+  await getAdminDb().collection(COLLECTIONS.bookings).doc(id).update({
+    cancelNotice: notice,
+    cancelNoticeAt: FieldValue.serverTimestamp(),
+    cancelNoticeReason: reason,
+  });
 }
