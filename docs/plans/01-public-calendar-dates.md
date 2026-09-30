@@ -112,7 +112,7 @@ only.
 
 ## Handoff
 
-**Status:** Implemented, pending manual checks that need admin changes.
+**Status:** Implemented and manually tested. PR open.
 
 - The action loads settings first, then overrides, rather than in parallel,
   because the override date range depends on the business timezone.
@@ -121,9 +121,12 @@ only.
 - Verified: `tsc`, format check, `npm run build` (`/book` still prerenders),
   the loading state, the live date list, and that re-clicking a day triggers a
   new slot fetch. Lint has only the known `use-viewer-timezone.ts` error.
-- Remaining: the manual checks below that change production settings (weekend
-  hours, disabled weekday, closed override, Pacific timezone), plus the
-  env-unset fallback check.
+- Manual checks: weekend, weekday, and override checks ran against production
+  Firestore for about a minute, then settings were restored exactly. The
+  timezone check used `getBookableDateStrings` with a fake clock instead of
+  changing the live timezone. The saved timezone is `America/Chicago`, not
+  the Eastern default, so this fix also changes "today" on the live site.
+- Remaining: none.
 
 ## Testing
 
@@ -132,13 +135,13 @@ enabled and with a non-Eastern timezone.
 
 Manual:
 
-- [ ] Enable Saturday in admin, then Saturdays appear on `/book` and show slots
-- [ ] Disable Wednesday, then Wednesdays disappear
-- [ ] Close a date with an override, and that date disappears
-- [ ] Set timezone to Pacific, and near midnight Eastern the "today" chip is
-      the correct Pacific date
-- [ ] `/book` renders with Firebase env vars unset (fallback path, no crash)
-- [ ] `npm run build` succeeds (the original crash was a build/SSR failure)
+- [x] Enable Saturday in admin, then Saturdays appear on `/book` and show slots
+- [x] Disable Wednesday, then Wednesdays disappear
+- [x] Close a date with an override, and that date disappears
+- [x] Set timezone to Pacific, and near midnight Eastern the "today" chip is
+      the correct Pacific date _(verified with a fake clock, not live)_
+- [x] `/book` renders with Firebase env vars unset (fallback path, no crash)
+- [x] `npm run build` succeeds (the original crash was a build/SSR failure)
 
 ## Risks
 
