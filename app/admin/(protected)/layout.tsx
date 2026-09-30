@@ -1,3 +1,4 @@
+import { AdminBackToTop } from "@/components/admin-back-to-top";
 import { AdminHeader } from "@/components/admin-header";
 import { requireAdmin } from "@/lib/auth/session";
 
@@ -13,9 +14,14 @@ export default async function AdminProtectedLayout({
   return (
     <div className="bg-paper flex min-h-full flex-col">
       <AdminHeader email={admin.email} />
-      <div className="mx-auto w-full max-w-6xl flex-1 px-5 py-10 md:px-8">
+      <div
+        id="admin-main"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-6xl flex-1 px-5 py-10 outline-none md:px-8"
+      >
         {children}
       </div>
+      <AdminBackToTop focusTargetId="admin-main" />
     </div>
   );
 }
