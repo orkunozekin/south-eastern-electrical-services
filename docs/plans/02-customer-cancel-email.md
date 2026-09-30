@@ -161,7 +161,7 @@ built on the existing `sendViaPlunk`:
 
 ### Reschedule link
 
-- Add a `SITE_URL` env var (e.g. `https://southeasternelectrical.com`), and
+- Add a `SITE_URL` env var (e.g. `https://southeasternelectrical.org`), and
   document it in `.env.example`.
 - The link is `${SITE_URL}/book?ref=cancelled`. The `ref` value is only for a
   friendlier heading on `/book` ("Sorry we had to cancel. Pick a new time
