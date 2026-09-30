@@ -1,6 +1,6 @@
 "use server";
 
-import { isValidDateString } from "@/lib/booking";
+import { getBookableDateStrings, isValidDateString } from "@/lib/booking";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
 import { sendBookingConfirmation, sendBookingNotification } from "@/lib/plunk";
 import { formatWithShortZone } from "@/lib/timezone";
@@ -56,6 +56,41 @@ function isValidTimezone(value: unknown): value is string {
 
 async function loadBookingServer() {
   return import("@/lib/booking/server");
+}
+
+export async function fetchBookingCalendarAction(): Promise<
+  { ok: true; timezone: string; dates: string[] } | { ok: false; error: string }
+> {
+  if (!isFirebaseAdminConfigured()) {
+    return { ok: false, error: UNAVAILABLE };
+  }
+
+  try {
+    const { getBookingSettings, listAvailabilityOverrides } =
+      await loadBookingServer();
+
+    const settings = await getBookingSettings();
+    const candidates = getBookableDateStrings(settings);
+    if (candidates.length === 0) {
+      return { ok: true, timezone: settings.timezone, dates: [] };
+    }
+
+    const overrides = await listAvailabilityOverrides({
+      from: candidates[0],
+      to: candidates[candidates.length - 1],
+    });
+    const closed = new Set(
+      overrides.filter((item) => item.closed).map((item) => item.date),
+    );
+
+    return {
+      ok: true,
+      timezone: settings.timezone,
+      dates: candidates.filter((date) => !closed.has(date)),
+    };
+  } catch (error) {
+    return { ok: false, error: toErrorMessage(error) };
+  }
 }
 
 export async function fetchSlotsAction(
@@ -173,7 +208,7 @@ export async function submitBookingAction(input: {
       if (booking.email) {
         calendarInvite =
           confirmResult.status === "fulfilled" &&
-          confirmResult.value !== "skipped"
+            confirmResult.value !== "skipped"
             ? "sent"
             : "failed";
       }

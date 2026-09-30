@@ -236,14 +236,6 @@ Limits:
   customers who already booked a time that's now outside your hours keep their
   booking. Check the Bookings page and cancel or call them if needed.
 
-> **Weekends:** The public booking calendar currently shows **Monday to
-> Friday** only. Ticking Saturday or Sunday here won't make weekend days appear
-> for customers yet. If you want to offer weekend callbacks, contact your
-> developer.
->
-> Unticking a weekday works as you'd expect: customers still see that day on
-> the calendar, but it says "No open times on this day."
-
 ### 5.2 Date overrides
 
 An override is a **one-off exception for a single date**. It doesn't change
@@ -258,7 +250,7 @@ There are two kinds.
 2. Leave **Closed all day** ticked (it's ticked by default).
 3. Click **Save override**.
 
-Customers will see "No open times on this day" for that date.
+That date disappears from the public booking calendar.
 
 #### Block specific times on a day
 
@@ -526,8 +518,8 @@ to delete it.
 ## 9. Good to know
 
 - **Customers can book up to about 2 weeks ahead.** The public calendar always
-  shows the next 14 days (weekdays only, see the
-  [weekends note](#51-weekly-hours)).
+  shows the days within the next 14 that are open in your weekly hours and
+  not closed by an override.
 - **There's no minimum notice.** A customer can book a slot that starts in a
   few minutes, as long as it hasn't started yet. If you don't want last-minute
   bookings on a busy day, block the remaining slots with a date override.
@@ -540,9 +532,8 @@ to delete it.
   already started.
 - **Changes take effect right away.** As soon as you save hours, overrides, or
   settings, the public booking page uses them. A customer who already has the
-  page open with a day selected keeps seeing that day's old times. Clicking
-  the same day again doesn't refresh it; they see the change when they pick a
-  _different_ day or reload the page. If they try to book a time you've just
+  page open with a day selected keeps seeing that day's old times until they
+  click a day or reload the page. If they try to book a time you've just
   closed, they're told it's no longer available and asked to pick another.
 - **The admin area is private.** It's hidden from search engines, and every
   page requires sign-in.
@@ -560,7 +551,7 @@ to delete it.
 | Blocked a time but customers can still book it                  | The time you typed probably isn't an actual slot start (e.g. `09:15` when slots are on the hour and half hour). Check the times against your slot duration.           |
 | "Slot duration must be between 15 and 120 minutes."             | Pick a value from 15 to 120.                                                                                                                                          |
 | "Invalid email: …"                                              | One of the Notify emails is mistyped. Fix the address shown in the message.                                                                                           |
-| A day shows "No open times on this day" for customers           | That day is unticked in Weekly hours, closed by an override, fully booked, or all remaining times have already passed today.                                          |
+| A day shows "No open times on this day" for customers           | That day is fully booked, or all remaining times have already passed today. (Unticked days and days closed by an override don't appear at all.)                       |
 | Not receiving booking emails                                    | Check spam/junk, then check the addresses on the Settings page. The booking will still be on the Bookings page. If emails still don't arrive, contact your developer. |
 | A new booking isn't on the Bookings page                        | Refresh the page.                                                                                                                                                     |
 | "Booking is temporarily unavailable" or "Something went wrong." | Try again in a minute. If it keeps happening, contact your developer; something may need attention behind the scenes.                                                 |
@@ -572,7 +563,7 @@ to delete it.
 Get in touch for anything you can't do from the admin pages, including:
 
 - Password resets, adding or removing admin users
-- Offering **weekend** callbacks, or opening on a day that's normally closed
+- Opening on a day that's normally closed
 - Split hours on a regular basis (e.g. a daily lunch break)
 - Changing the booking window (currently about 2 weeks)
 - Changes to the email wording, sender name, or the behind-the-scenes copy

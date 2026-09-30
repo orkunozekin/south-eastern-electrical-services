@@ -95,20 +95,38 @@ only.
 
 ## Implementation steps
 
-- [ ] Add optional date range to `listAvailabilityOverrides` in
+- [x] Add optional date range to `listAvailabilityOverrides` in
       `lib/booking/repository.ts`
-- [ ] Add `fetchBookingCalendarAction` to `app/actions/booking.ts`
-- [ ] Wizard: dates/timezone state, fetch on mount, loading state, reselect
+- [x] Add `fetchBookingCalendarAction` to `app/actions/booking.ts`
+- [x] Wizard: dates/timezone state, fetch on mount, loading state, reselect
       logic, gate slot fetch
-- [ ] Update the comment in `app/(site)/book/data.ts`
+- [x] Update the comment in `app/(site)/book/data.ts`
 - [ ] Remove `revalidatePath("/book")` calls in `app/actions/admin.ts` if
       they're no longer meaningful (the page has no server-fetched data).
-      Harmless either way, so optional.
-- [ ] Wizard: refetch slots when the selected day is clicked again
-- [ ] Update `docs/admin-guide.md`: remove the weekends note in §5.1 and the
+      Harmless either way, so optional. _(Skipped: left in place.)_
+- [x] Wizard: refetch slots when the selected day is clicked again
+- [x] Update `docs/admin-guide.md`: remove the weekends note in §5.1 and the
       "weekdays only" note in §9, and remove "offering weekend callbacks" from
       §11. In the §9 "Changes take effect right away" item, drop the
       "clicking the same day again doesn't refresh it" caveat.
+
+## Handoff
+
+**Status:** Implemented and manually tested. PR open.
+
+- The action loads settings first, then overrides, rather than in parallel,
+  because the override date range depends on the business timezone.
+- The admin guide also had stale text in §5.2 ("Close a whole day") and the §10
+  troubleshooting row about "No open times"; both are updated.
+- Verified: `tsc`, format check, `npm run build` (`/book` still prerenders),
+  the loading state, the live date list, and that re-clicking a day triggers a
+  new slot fetch. Lint has only the known `use-viewer-timezone.ts` error.
+- Manual checks: weekend, weekday, and override checks ran against production
+  Firestore for about a minute, then settings were restored exactly. The
+  timezone check used `getBookableDateStrings` with a fake clock instead of
+  changing the live timezone. The saved timezone is `America/Chicago`, not
+  the Eastern default, so this fix also changes "today" on the live site.
+- Remaining: none.
 
 ## Testing
 
@@ -117,13 +135,13 @@ enabled and with a non-Eastern timezone.
 
 Manual:
 
-- [ ] Enable Saturday in admin, then Saturdays appear on `/book` and show slots
-- [ ] Disable Wednesday, then Wednesdays disappear
-- [ ] Close a date with an override, and that date disappears
-- [ ] Set timezone to Pacific, and near midnight Eastern the "today" chip is
-      the correct Pacific date
-- [ ] `/book` renders with Firebase env vars unset (fallback path, no crash)
-- [ ] `npm run build` succeeds (the original crash was a build/SSR failure)
+- [x] Enable Saturday in admin, then Saturdays appear on `/book` and show slots
+- [x] Disable Wednesday, then Wednesdays disappear
+- [x] Close a date with an override, and that date disappears
+- [x] Set timezone to Pacific, and near midnight Eastern the "today" chip is
+      the correct Pacific date _(verified with a fake clock, not live)_
+- [x] `/book` renders with Firebase env vars unset (fallback path, no crash)
+- [x] `npm run build` succeeds (the original crash was a build/SSR failure)
 
 ## Risks
 

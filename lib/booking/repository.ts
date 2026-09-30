@@ -88,7 +88,7 @@ function mergeSettings(data: DocumentData | undefined): BookingSettings {
         : DEFAULT_BOOKING_SETTINGS.timezone,
     slotDurationMinutes:
       typeof data.slotDurationMinutes === "number" &&
-      data.slotDurationMinutes > 0
+        data.slotDurationMinutes > 0
         ? data.slotDurationMinutes
         : DEFAULT_BOOKING_SETTINGS.slotDurationMinutes,
     weeklyHours:
@@ -213,13 +213,23 @@ export async function deleteAvailabilityOverride(date: string): Promise<void> {
     .delete();
 }
 
-export async function listAvailabilityOverrides(): Promise<
-  AvailabilityOverride[]
-> {
-  const snap = await getAdminDb()
+/** `from` and `to` are inclusive `YYYY-MM-DD` bounds on the override date. */
+export async function listAvailabilityOverrides(range?: {
+  from?: string;
+  to?: string;
+}): Promise<AvailabilityOverride[]> {
+  let q: Query = getAdminDb()
     .collection(COLLECTIONS.availabilityOverrides)
-    .orderBy("__name__", "asc")
-    .get();
+    .orderBy("__name__", "asc");
+
+  if (range?.from) {
+    q = q.where("__name__", ">=", range.from);
+  }
+  if (range?.to) {
+    q = q.where("__name__", "<=", range.to);
+  }
+
+  const snap = await q.get();
 
   return snap.docs
     .map((doc) => overrideFromData(doc.id, doc.data()))
