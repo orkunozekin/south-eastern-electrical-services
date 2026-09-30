@@ -1,21 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-export function AdminBackToTop() {
+type AdminBackToTopProps = {
+  /** Receives focus when the button hides, so focus never sits on hidden content. */
+  focusTargetId: string;
+};
+
+function focusElement(id: string) {
+  document.getElementById(id)?.focus({ preventScroll: true });
+}
+
+export function AdminBackToTop({ focusTargetId }: AdminBackToTopProps) {
   const [visible, setVisible] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const onScroll = () => setVisible(window.scrollY > 600);
+    const onScroll = () => {
+      const next = window.scrollY > 600;
+      if (!next && document.activeElement === buttonRef.current) {
+        focusElement(focusTargetId);
+      }
+      setVisible(next);
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [focusTargetId]);
 
   return (
     <button
+      ref={buttonRef}
       type="button"
-      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      onClick={() => {
+        focusElement(focusTargetId);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }}
       aria-label="Back to top"
       aria-hidden={!visible}
       tabIndex={visible ? 0 : -1}
