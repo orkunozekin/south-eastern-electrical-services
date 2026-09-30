@@ -6,7 +6,8 @@ import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
 
 /**
  * Safe for SSR: never imports firebase-admin.
- * Calendar dates come from defaults; live settings load client-side via actions.
+ * Dates here come from defaults and are only a first-paint and error fallback;
+ * the wizard replaces them via `fetchBookingCalendarAction`.
  */
 export function getBookingPageData(): {
   timezone: string;

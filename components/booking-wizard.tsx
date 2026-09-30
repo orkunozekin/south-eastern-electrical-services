@@ -4,6 +4,7 @@ import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { useEffect, useState, useTransition, type FormEvent } from "react";
 
 import {
+  fetchBookingCalendarAction,
   fetchSlotsAction,
   submitBookingAction,
   type BookingDto,
@@ -49,14 +50,21 @@ function bookingWhenLabel(startsAt: string, viewerTimezone: string): string {
 }
 
 export function BookingWizard({
-  dates,
-  timezone,
+  dates: initialDates,
+  timezone: initialTimezone,
   configured,
 }: BookingWizardProps) {
+  const [calendar, setCalendar] = useState({
+    dates: initialDates,
+    timezone: initialTimezone,
+  });
+  const [calendarLoaded, setCalendarLoaded] = useState(!configured);
+  const { dates, timezone } = calendar;
   const viewerTimezone = useViewerTimezone(timezone);
   const [selectedDate, setSelectedDate] = useState<string | null>(
-    dates[0] ?? null,
+    initialDates[0] ?? null,
   );
+  const [slotsRequestId, setSlotsRequestId] = useState(0);
   const [slots, setSlots] = useState<SlotDto[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<SlotDto | null>(null);
   const [slotsError, setSlotsError] = useState<string | null>(null);
@@ -69,7 +77,31 @@ export function BookingWizard({
   const [pendingSubmit, startSubmit] = useTransition();
 
   useEffect(() => {
-    if (!selectedDate) return;
+    if (!configured) return;
+
+    let cancelled = false;
+
+    fetchBookingCalendarAction().then((result) => {
+      if (cancelled) return;
+
+      if (result.ok) {
+        setCalendar({ dates: result.dates, timezone: result.timezone });
+        setSelectedDate((current) =>
+          current && result.dates.includes(current)
+            ? current
+            : (result.dates[0] ?? null),
+        );
+      }
+      setCalendarLoaded(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [configured]);
+
+  useEffect(() => {
+    if (!calendarLoaded || !selectedDate) return;
 
     let cancelled = false;
 
@@ -90,10 +122,11 @@ export function BookingWizard({
     return () => {
       cancelled = true;
     };
-  }, [selectedDate]);
+  }, [calendarLoaded, selectedDate, slotsRequestId]);
 
   function selectDate(date: string) {
     setSelectedDate(date);
+    setSlotsRequestId((id) => id + 1);
     setSelectedSlot(null);
     setSlotsError(null);
   }
@@ -182,8 +215,16 @@ export function BookingWizard({
         <h2 className="font-display text-xl font-semibold tracking-tight text-white uppercase">
           1. Choose a day
         </h2>
+        {!calendarLoaded && (
+          <p className="text-mist/70 mt-4 text-sm">Loading days…</p>
+        )}
+        {calendarLoaded && dates.length === 0 && (
+          <p className="text-mist/70 mt-4 text-sm">
+            No days are open for booking right now. Please call us instead.
+          </p>
+        )}
         <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
-          {dates.map((date) => {
+          {(calendarLoaded ? dates : []).map((date) => {
             const chip = formatDateChip(date, timezone);
             const active = date === selectedDate;
             return (
@@ -191,11 +232,10 @@ export function BookingWizard({
                 key={date}
                 type="button"
                 onClick={() => selectDate(date)}
-                className={`min-w-[5.5rem] shrink-0 cursor-pointer px-3 py-3 text-left transition ${
-                  active
+                className={`min-w-[5.5rem] shrink-0 cursor-pointer px-3 py-3 text-left transition ${active
                     ? "bg-amber text-navy-deep"
                     : "bg-white/10 text-white hover:bg-white/15"
-                }`}
+                  }`}
               >
                 <span className="block text-xs font-semibold tracking-wide uppercase opacity-80">
                   {chip.weekday}
@@ -227,11 +267,15 @@ export function BookingWizard({
           <p className="text-amber mt-4 text-sm">{slotsError}</p>
         )}
 
-        {!pendingSlots && !slotsError && slots.length === 0 && selectedDate && (
-          <p className="text-mist/70 mt-4 text-sm">
-            No open times on this day. Pick another date.
-          </p>
-        )}
+        {calendarLoaded &&
+          !pendingSlots &&
+          !slotsError &&
+          slots.length === 0 &&
+          selectedDate && (
+            <p className="text-mist/70 mt-4 text-sm">
+              No open times on this day. Pick another date.
+            </p>
+          )}
 
         <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
           {slots.map((slot) => {
@@ -241,11 +285,10 @@ export function BookingWizard({
                 key={slot.slotId}
                 type="button"
                 onClick={() => setSelectedSlot(slot)}
-                className={`cursor-pointer px-3 py-3 text-sm font-semibold tracking-wide transition ${
-                  active
+                className={`cursor-pointer px-3 py-3 text-sm font-semibold tracking-wide transition ${active
                     ? "bg-amber text-navy-deep scale-[1.03] shadow-[0_0_0_2px_color-mix(in_srgb,var(--amber-hot)_80%,transparent)]"
                     : "bg-white/10 text-white hover:bg-white/15"
-                }`}
+                  }`}
               >
                 {slotTimeLabel(slot.startsAt, viewerTimezone)}
               </button>

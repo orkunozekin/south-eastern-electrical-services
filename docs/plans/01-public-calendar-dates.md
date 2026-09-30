@@ -95,20 +95,35 @@ only.
 
 ## Implementation steps
 
-- [ ] Add optional date range to `listAvailabilityOverrides` in
+- [x] Add optional date range to `listAvailabilityOverrides` in
       `lib/booking/repository.ts`
-- [ ] Add `fetchBookingCalendarAction` to `app/actions/booking.ts`
-- [ ] Wizard: dates/timezone state, fetch on mount, loading state, reselect
+- [x] Add `fetchBookingCalendarAction` to `app/actions/booking.ts`
+- [x] Wizard: dates/timezone state, fetch on mount, loading state, reselect
       logic, gate slot fetch
-- [ ] Update the comment in `app/(site)/book/data.ts`
+- [x] Update the comment in `app/(site)/book/data.ts`
 - [ ] Remove `revalidatePath("/book")` calls in `app/actions/admin.ts` if
       they're no longer meaningful (the page has no server-fetched data).
-      Harmless either way, so optional.
-- [ ] Wizard: refetch slots when the selected day is clicked again
-- [ ] Update `docs/admin-guide.md`: remove the weekends note in §5.1 and the
+      Harmless either way, so optional. _(Skipped: left in place.)_
+- [x] Wizard: refetch slots when the selected day is clicked again
+- [x] Update `docs/admin-guide.md`: remove the weekends note in §5.1 and the
       "weekdays only" note in §9, and remove "offering weekend callbacks" from
       §11. In the §9 "Changes take effect right away" item, drop the
       "clicking the same day again doesn't refresh it" caveat.
+
+## Handoff
+
+**Status:** Implemented, pending manual checks that need admin changes.
+
+- The action loads settings first, then overrides, rather than in parallel,
+  because the override date range depends on the business timezone.
+- The admin guide also had stale text in §5.2 ("Close a whole day") and the §10
+  troubleshooting row about "No open times"; both are updated.
+- Verified: `tsc`, format check, `npm run build` (`/book` still prerenders),
+  the loading state, the live date list, and that re-clicking a day triggers a
+  new slot fetch. Lint has only the known `use-viewer-timezone.ts` error.
+- Remaining: the manual checks below that change production settings (weekend
+  hours, disabled weekday, closed override, Pacific timezone), plus the
+  env-unset fallback check.
 
 ## Testing
 
