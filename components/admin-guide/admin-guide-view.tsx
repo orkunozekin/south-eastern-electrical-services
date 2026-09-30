@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { GuideBackToTop, GuidePrintButton } from "./guide-actions";
+import { GuidePrintButton } from "./guide-actions";
 import { GuideMarkdown } from "./guide-markdown";
 import { GuideToc } from "./guide-toc";
 import {
@@ -172,8 +172,6 @@ export function AdminGuideView({ guide }: AdminGuideViewProps) {
           </p>
         </div>
       </div>
-
-      <GuideBackToTop />
     </div>
   );
 }

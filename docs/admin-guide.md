@@ -114,6 +114,9 @@ Every admin page has a dark blue bar across the top with:
 (three horizontal lines) in the top-right corner. Tap it to open the menu, and
 tap it again (or press outside the menu) to close it.
 
+On a long page, once you've scrolled down a way, an **arrow button** appears in
+the bottom-right corner. Click it to jump back to the top.
+
 ### Getting help while you work
 
 - Each admin page has a **help link** under its title (for example "How
@@ -147,6 +150,18 @@ Callbacks from **the last 7 days** that have already passed, plus any bookings
 that were cancelled. Each entry is marked as either `confirmed` (the callback
 time has passed) or `cancelled`. Anything older than 7 days drops off this list
 automatically.
+
+### Searching bookings
+
+Type in the **Search bookings** box at the top of the page to show only the
+bookings that match. You can search by the customer's **name**, **phone
+number** (with or without dashes, e.g. `555-123` or `555123`), **email**,
+**date** (e.g. `Oct 6` or `Tuesday`), or **status** (`cancelled`). Several
+words narrow it down further, e.g. `smith oct`.
+
+Both sections filter as you type. To see everything again, click **Clear
+search** or press **Esc**. The search only looks at the bookings already on the
+page, so refresh first if you're expecting a new one.
 
 ### About the times shown
 

@@ -1,3 +1,4 @@
+import { AdminBackToTop } from "@/components/admin-back-to-top";
 import { AdminHeader } from "@/components/admin-header";
 import { requireAdmin } from "@/lib/auth/session";
 
@@ -16,6 +17,7 @@ export default async function AdminProtectedLayout({
       <div className="mx-auto w-full max-w-6xl flex-1 px-5 py-10 md:px-8">
         {children}
       </div>
+      <AdminBackToTop />
     </div>
   );
 }

@@ -15,17 +15,48 @@ function bookingWhenLabel(startsAt: string, viewerTimezone: string): string {
   return formatWithShortZone(startsAt, viewerTimezone, "EEE, MMM d · h:mm a");
 }
 
+function matchesSearch(
+  booking: AdminBookingDto,
+  terms: string[],
+  viewerTimezone: string,
+): boolean {
+  const text = [
+    booking.name,
+    booking.email ?? "",
+    booking.phoneDisplay,
+    booking.status,
+    bookingWhenLabel(booking.startsAt, viewerTimezone),
+    formatWithShortZone(booking.startsAt, viewerTimezone, "EEEE, MMMM d, yyyy"),
+  ]
+    .join(" ")
+    .toLowerCase();
+  const phoneDigits = booking.phone.replace(/\D/g, "");
+
+  return terms.every((term) => {
+    if (text.includes(term)) return true;
+    const digits = term.replace(/[().+-]/g, "");
+    return /^\d{3,}$/.test(digits) && phoneDigits.includes(digits);
+  });
+}
+
 export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
   const router = useRouter();
   const viewerTimezone = useViewerTimezone("America/New_York");
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
 
-  const upcoming = bookings.filter(
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const searching = terms.length > 0;
+  const visible = searching
+    ? bookings.filter((b) => matchesSearch(b, terms, viewerTimezone))
+    : bookings;
+
+  const upcoming = visible.filter(
     (b) => b.status === "confirmed" && new Date(b.startsAt) >= new Date(),
   );
-  const pastOrCancelled = bookings.filter(
+  const pastOrCancelled = visible.filter(
     (b) => !(b.status === "confirmed" && new Date(b.startsAt) >= new Date()),
   );
 
@@ -46,6 +77,55 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
 
   return (
     <div className="space-y-10">
+      {bookings.length > 0 && (
+        <div>
+          <label
+            htmlFor="booking-search"
+            className="text-navy block text-sm font-semibold"
+          >
+            Search bookings
+          </label>
+          <div className="relative mt-2 max-w-md">
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="text-slate pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <input
+              id="booking-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setQuery("");
+              }}
+              placeholder="Name, phone, email, or date"
+              autoComplete="off"
+              className="border-navy/20 text-navy placeholder:text-slate/70 focus:border-amber w-full border bg-white py-2.5 pr-3 pl-9 text-base outline-none"
+            />
+          </div>
+          {searching && (
+            <p className="text-slate mt-2 text-sm" aria-live="polite">
+              {visible.length} of {bookings.length}{" "}
+              {bookings.length === 1 ? "booking" : "bookings"} match.{" "}
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="text-navy decoration-amber font-medium underline decoration-2 underline-offset-4"
+              >
+                Clear search
+              </button>
+            </p>
+          )}
+        </div>
+      )}
+
       {error && <p className="text-sm text-red-700">{error}</p>}
 
       <section>
@@ -53,7 +133,11 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
           Upcoming
         </h2>
         {upcoming.length === 0 ? (
-          <p className="text-slate mt-3">No upcoming callbacks.</p>
+          <p className="text-slate mt-3">
+            {searching
+              ? "No upcoming callbacks match your search."
+              : "No upcoming callbacks."}
+          </p>
         ) : (
           <ul className="divide-navy/10 border-navy/10 mt-4 divide-y border-y">
             {upcoming.map((booking) => (
@@ -92,7 +176,11 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
           Recent / cancelled
         </h2>
         {pastOrCancelled.length === 0 ? (
-          <p className="text-slate mt-3">No recent bookings yet.</p>
+          <p className="text-slate mt-3">
+            {searching
+              ? "No recent or cancelled bookings match your search."
+              : "No recent bookings yet."}
+          </p>
         ) : (
           <ul className="divide-navy/10 border-navy/10 mt-4 divide-y border-y">
             {pastOrCancelled.map((booking) => (
