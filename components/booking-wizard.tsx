@@ -361,7 +361,7 @@ export function BookingWizard({
                 placeholder="jane@example.com"
               />
               <span id="email-hint" className="text-mist/60 mt-2 block text-sm">
-                Optional. We’ll send a calendar invite, and let you know if we
+                Optional. We’ll send a calendar invite, and may email you if we
                 need to reschedule. We’ll still call your phone either way.
               </span>
             </label>

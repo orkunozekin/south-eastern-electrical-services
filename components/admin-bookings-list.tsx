@@ -46,8 +46,8 @@ function describeCancelResult(
       };
     case "Booking time has passed":
       return {
-        tone: "ok",
-        text: "Cancelled. The booking time had passed, so no email was sent.",
+        tone: "warn",
+        text: `Cancelled. The booking time had passed, so no email was sent; ${callHint}`,
       };
     case "Email not configured":
       return {

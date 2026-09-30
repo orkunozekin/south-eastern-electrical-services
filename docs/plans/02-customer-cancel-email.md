@@ -71,12 +71,12 @@ Not yet done:
 
 ## Decisions needed
 
-| Question                                         | Recommendation                                                                                                               |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| Email field hint wording                         | "Optional. We'll send a calendar invite, and let you know if we need to reschedule. We'll still call your phone either way." |
-| Reply-to address                                 | The first `notifyEmails` address, so customer replies reach the business.                                                    |
-| Business phone number to include in the email    | Ask the client. Also worth adding to the site footer and contact page.                                                       |
-| Should the admin be able to add a personal note? | Yes, an optional short message included in the email (e.g. "Sorry, I'm out on an emergency job").                            |
+| Question                                         | Recommendation                                                                                                                |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| Email field hint wording                         | "Optional. We'll send a calendar invite, and may email you if we need to reschedule. We'll still call your phone either way." |
+| Reply-to address                                 | The first `notifyEmails` address, so customer replies reach the business.                                                     |
+| Business phone number to include in the email    | Ask the client. Also worth adding to the site footer and contact page.                                                        |
+| Should the admin be able to add a personal note? | Yes, an optional short message included in the email (e.g. "Sorry, I'm out on an emergency job").                             |
 
 ## Design
 

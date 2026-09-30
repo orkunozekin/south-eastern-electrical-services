@@ -185,8 +185,9 @@ What happens:
 Important:
 
 - **If the message says to call the customer, please call them.** That
-  happens when there's no email on file, you unticked the box, or the email
-  couldn't be sent. The booking is cancelled either way.
+  happens when there's no email on file, you unticked the box, the callback
+  time had already started, or the email couldn't be sent. The booking is
+  cancelled either way.
 - **Customers aren't texted.** Only customers who left an email are notified
   automatically.
 - **Cancelling can't be undone.** If you cancel by mistake, re-book the
