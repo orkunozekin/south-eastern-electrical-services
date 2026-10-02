@@ -57,7 +57,7 @@ export type Booking = {
 };
 
 export type Slot = {
-  /** Idempotent id used as Firestore `slots/{slotId}` doc id. */
+  /** Readable local-time label; availability uses real time ranges. */
   slotId: string;
   startsAt: Date;
   endsAt: Date;

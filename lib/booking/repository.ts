@@ -22,6 +22,8 @@ import {
   bookingLockDates,
   MAX_SLOT_MINUTES,
   rangesOverlap,
+  isBookingWithinAvailability,
+  isDateWithinBookingWindow,
 } from "./slots";
 import type {
   AvailabilityOverride,
@@ -306,11 +308,50 @@ export async function listAvailableSlots(date: string): Promise<Slot[]> {
   if (!isValidDateString(date))
     throw new BookingError(`Invalid date: ${date}`, "INVALID_DATE");
   const settings = await getBookingSettings();
+  if (!isDateWithinBookingWindow(date, settings)) return [];
   const [override, bookedRanges] = await Promise.all([
     getAvailabilityOverride(date),
     getBookedRangesForDate(date, settings.timezone),
   ]);
   return getAvailableSlots({ date, settings, override, bookedRanges });
+}
+
+export async function findConflictingBookings(input: {
+  settings: BookingSettings;
+  overrides: Map<string, AvailabilityOverride | null>;
+  from?: Date;
+  to?: Date;
+}): Promise<Booking[]> {
+  const bookings = await listBookings({
+    from: input.from ?? new Date(),
+    to: input.to,
+    status: "confirmed",
+  });
+  const overrides = new Map(input.overrides);
+  const dates = [
+    ...new Set(
+      bookings.map((b) =>
+        formatInTimeZone(b.startsAt, input.settings.timezone, "yyyy-MM-dd"),
+      ),
+    ),
+  ];
+  await Promise.all(
+    dates
+      .filter((date) => !overrides.has(date))
+      .map(async (date) => {
+        overrides.set(date, await getAvailabilityOverride(date));
+      }),
+  );
+  return bookings.filter(
+    (b) =>
+      !isBookingWithinAvailability(
+        b,
+        input.settings,
+        overrides.get(
+          formatInTimeZone(b.startsAt, input.settings.timezone, "yyyy-MM-dd"),
+        ) ?? null,
+      ),
+  );
 }
 
 export async function listBookings(options?: {

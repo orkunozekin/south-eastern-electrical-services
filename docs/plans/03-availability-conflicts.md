@@ -124,16 +124,16 @@ before this feature shipped, or by "Save anyway".
 
 ## Implementation steps
 
-- [ ] `isBookingWithinAvailability` in `lib/booking/slots.ts`, plus unit tests
-- [ ] `findConflictingBookings` in the repository
-- [ ] `previewOverrideAction`; `saveOverrideAction` with `conflictResolution`
-- [ ] Availability form: preview → conflict panel → save with resolution →
+- [x] `isBookingWithinAvailability` in `lib/booking/slots.ts`, plus unit tests
+- [x] `findConflictingBookings` in the repository
+- [x] `previewOverrideAction`; `saveOverrideAction` with `conflictResolution`
+- [x] Availability form: preview → conflict panel → save with resolution →
       summary
-- [ ] `previewWeeklyHoursAction` and warning UI on weekly hours
-- [ ] Run the same preview on Settings save when timezone or slot length
+- [x] `previewWeeklyHoursAction` and warning UI on weekly hours
+- [x] Run the same preview on Settings save when timezone or slot length
       changes
-- [ ] "Outside your hours" badge on the Bookings page
-- [ ] Update `docs/admin-guide.md`: §5.1 "Changes don't affect existing
+- [x] "Outside your hours" badge on the Bookings page
+- [x] Update `docs/admin-guide.md`: §5.1 "Changes don't affect existing
       bookings", §5.2 "Overrides don't cancel existing bookings", §8 "Take a day
       off" recipe (step 3 goes away), §6.1 timezone warning
 
@@ -160,3 +160,9 @@ Manual:
 - **Query cost:** `findConflictingBookings` reads all future bookings. At this
   business's volume (tens per week) that's fine. If it ever grows, bound it
   with `to` (e.g. the booking window from 05) and query by date.
+
+## Implementation handoff
+
+Preview and explicit resolution flows are implemented. Date override conflicts are recomputed after saving, so bookings committed before the save are included; booking transactions re-read overrides. Per-booking results include email failures and contact numbers. Weekly hours and settings require confirmation when conflicts exist. Existing long bookings remain valid across adjacent shorter open slots; gaps and blocked slots still cause conflicts. Emulator tests cover each resolution and a booking arriving after preview.
+
+Verified locally: 44 unit tests and 12 guarded Firestore emulator tests, TypeScript, lint, formatting, and production build. No production settings, bookings, or emails were changed. Original manual checklists above remain unchecked where real provider/client testing has not been performed.

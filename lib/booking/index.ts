@@ -7,6 +7,7 @@ export {
 export {
   bookingCalendarWeeks,
   bookingWindowEnd,
+  isBookingWithinAvailability,
   getAvailableSlots,
   generateDaySlots,
   getBookableDateStrings,

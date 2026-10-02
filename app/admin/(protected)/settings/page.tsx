@@ -42,6 +42,7 @@ export default async function AdminSettingsPage() {
           <AdminSettingsForm
             settings={result.settings}
             bootstrapRecipients={result.bootstrapRecipients}
+            upcomingBookings={result.upcomingBookings}
           />
         ) : (
           <p className="text-red-700">{result.error}</p>

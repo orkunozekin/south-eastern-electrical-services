@@ -5,6 +5,7 @@ import {
   bookingLockDates,
   getAvailableSlots,
   getBookableDateStrings,
+  isBookingWithinAvailability,
 } from "../lib/booking/slots";
 import { mergeSettings } from "../lib/booking/repository";
 import {
@@ -167,6 +168,46 @@ describe("booking availability", () => {
         new Date("2026-10-06T00:30Z"),
       ),
     ).toEqual(["2026-10-05", "2026-10-06"]));
+});
+describe("conflict warnings", () => {
+  it("keeps a shorter booking contained in a longer slot", () =>
+    expect(
+      isBookingWithinAvailability(
+        range("09:30", "10:00"),
+        { ...settings, slotDurationMinutes: 60 },
+        null,
+      ),
+    ).toBe(true));
+  it("keeps a longer booking covered by adjacent shorter open slots", () =>
+    expect(
+      isBookingWithinAvailability(range("09:00", "10:00"), settings, null),
+    ).toBe(true));
+  it("rejects bookings outside hours or on closed days", () => {
+    expect(
+      isBookingWithinAvailability(range("08:30", "09:00"), settings, null),
+    ).toBe(false);
+    expect(
+      isBookingWithinAvailability(range("09:00", "09:30"), settings, {
+        date: "2026-10-05",
+        closed: true,
+      }),
+    ).toBe(false);
+  });
+  it("rejects any overlap with a blocked slot", () =>
+    expect(
+      isBookingWithinAvailability(range("09:00", "10:00"), settings, {
+        date: "2026-10-05",
+        blockedSlots: ["09:30"],
+      }),
+    ).toBe(false));
+  it("uses proposed timezone rather than original local labels", () =>
+    expect(
+      isBookingWithinAvailability(
+        range("09:00", "09:30"),
+        { ...settings, timezone: "America/New_York" },
+        null,
+      ),
+    ).toBe(false));
 });
 describe("settings safety", () => {
   it("defaults missing legacy settings without changing the notice period", () => {

@@ -176,6 +176,30 @@ export function isDateWithinBookingWindow(
   );
 }
 
+export function isBookingWithinAvailability(
+  booking: { startsAt: Date; endsAt: Date },
+  settings: BookingSettings,
+  override: AvailabilityOverride | null,
+): boolean {
+  const date = formatInTimeZone(
+    booking.startsAt,
+    settings.timezone,
+    "yyyy-MM-dd",
+  );
+  // Merge adjacent open slots so an existing long booking remains valid when
+  // the new grid uses shorter slots. Gaps and blocked slots remain unavailable.
+  const slots = generateDaySlots(date, settings, override).sort(
+    (a, b) => +a.startsAt - +b.startsAt,
+  );
+  let coveredUntil = booking.startsAt;
+  for (const slot of slots) {
+    if (slot.startsAt > coveredUntil) break;
+    if (slot.endsAt > coveredUntil) coveredUntil = slot.endsAt;
+    if (coveredUntil >= booking.endsAt) return true;
+  }
+  return false;
+}
+
 /** UTC day locks also serialize overlaps across a business timezone change. */
 export function bookingLockDates(startsAt: Date, endsAt: Date): string[] {
   return [

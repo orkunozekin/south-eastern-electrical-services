@@ -6,6 +6,7 @@ export {
   getAvailabilityOverride,
   getBooking,
   getBookingSettings,
+  findConflictingBookings,
   listAvailabilityOverrides,
   listAvailableSlots,
   listBookings,

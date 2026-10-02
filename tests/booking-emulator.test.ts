@@ -24,7 +24,8 @@ vi.mock("../lib/plunk", async (importOriginal) => {
     sendCustomerCancellation: vi.fn(async () => "sent" as const),
   };
 });
-
+import type * as AdminActions from "../app/actions/admin";
+import { requireAdmin } from "../lib/auth/session";
 import type * as Repository from "../lib/booking/repository";
 
 const enabled = process.env.RUN_FIRESTORE_TESTS === "true";
@@ -42,7 +43,7 @@ if (
 let app: App;
 let db: Firestore;
 let repo: typeof Repository;
-
+let actions: typeof AdminActions;
 const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 const startsAt = (hm: string) => new Date(`${tomorrow}T${hm}:00Z`);
 const settings = {
@@ -70,6 +71,7 @@ describe.skipIf(!enabled)(
       app = initializeApp({ projectId: "demo-southeastern-tests" });
       db = getFirestore(app);
       repo = await import("../lib/booking/repository");
+      actions = await import("../app/actions/admin");
     });
     beforeEach(async () => {
       vi.restoreAllMocks();
@@ -198,6 +200,121 @@ describe.skipIf(!enabled)(
       await expect(repo.createBooking(input("09:00"))).rejects.toMatchObject({
         code: "SLOT_UNAVAILABLE",
       });
+    });
+    it("uses proposed overrides in conflict previews and includes bookings added before save", async () => {
+      await repo.createBooking(input("09:00"));
+      const override = { date: tomorrow, closed: true };
+      expect(
+        await repo.findConflictingBookings({
+          settings,
+          overrides: new Map([[tomorrow, override]]),
+        }),
+      ).toHaveLength(1);
+      await repo.createBooking(input("10:00"));
+      await repo.saveAvailabilityOverride(override);
+      expect(
+        await repo.findConflictingBookings({
+          settings,
+          overrides: new Map([[tomorrow, override]]),
+        }),
+      ).toHaveLength(2);
+      expect(await repo.listAvailableSlots(tomorrow)).toEqual([]);
+    });
+    it("guards every admin preview and mutation and rejects invalid blocked starts", async () => {
+      const result = await actions.previewOverrideAction({
+        date: tomorrow,
+        closed: false,
+        blockedSlots: ["09:15"],
+      });
+      expect(requireAdmin).toHaveBeenCalled();
+      expect(result).toMatchObject({
+        ok: false,
+        error: expect.stringContaining("isn't a slot start"),
+      });
+    });
+    it("cancels and reports customer notices for all date-override conflicts", async () => {
+      await repo.createBooking({
+        ...input("09:00"),
+        email: "jane@example.com",
+      });
+      await repo.createBooking(input("10:00"));
+      const preview = await actions.previewOverrideAction({
+        date: tomorrow,
+        closed: true,
+        blockedSlots: [],
+      });
+      expect(preview).toMatchObject({ ok: true, conflicts: expect.any(Array) });
+      if (!preview.ok) throw new Error(preview.error);
+      expect(preview.conflicts).toHaveLength(2);
+      await repo.createBooking(input("11:00"));
+      const result = await actions.saveOverrideAction({
+        date: tomorrow,
+        closed: true,
+        blockedSlots: [],
+        conflictResolution: "cancel-and-notify",
+      });
+      if (!result.ok) throw new Error(result.error);
+      expect(result.results).toHaveLength(3);
+      expect(
+        result.results.filter((r) => r.ok && r.result.notice === "sent"),
+      ).toHaveLength(1);
+      expect(
+        result.results.filter((r) => r.ok && r.result.notice === "skipped"),
+      ).toHaveLength(2);
+      expect(await repo.listBookings({ status: "confirmed" })).toHaveLength(0);
+    });
+    it("keeps conflicts when requested and shows the outside-hours badge", async () => {
+      await repo.createBooking(input("09:00"));
+      const result = await actions.saveOverrideAction({
+        date: tomorrow,
+        closed: true,
+        blockedSlots: [],
+        conflictResolution: "keep",
+      });
+      if (!result.ok) throw new Error(result.error);
+      expect(result.keptConflicts).toHaveLength(1);
+      expect(await actions.getAdminBookingsAction()).toMatchObject({
+        ok: true,
+        bookings: [
+          expect.objectContaining({ outsideHours: true, status: "confirmed" }),
+        ],
+      });
+    });
+    it("requires weekly-hours confirmation and preserves saved notification recipients", async () => {
+      await repo.createBooking(input("09:00"));
+      const result = await actions.saveWeeklyHoursAction({});
+      expect(result).toMatchObject({ ok: false, conflicts: expect.any(Array) });
+      expect(
+        await actions.saveWeeklyHoursAction({}, { keepConflicts: true }),
+      ).toEqual({ ok: true });
+      expect((await repo.getBookingSettings()).notifyEmails).toEqual([
+        "owner@example.com",
+      ]);
+    });
+    it("settings changes preview conflicts and shrinking a window keeps existing bookings", async () => {
+      const booking = await repo.createBooking(input("09:00"));
+      const changed = {
+        ...settings,
+        timezone: "America/New_York",
+        bookingWindowDays: 1,
+      };
+      expect(await actions.previewSettingsAction(changed)).toMatchObject({
+        ok: true,
+        conflicts: [expect.objectContaining({ id: booking.id })],
+      });
+      expect(await actions.saveAdminSettingsAction(changed)).toMatchObject({
+        ok: false,
+      });
+      expect(
+        await actions.saveAdminSettingsAction(changed, { keepConflicts: true }),
+      ).toEqual({ ok: true });
+      expect((await repo.getBooking(booking.id))?.status).toBe("confirmed");
+      expect(await repo.listAvailableSlots(tomorrow)).toEqual([]);
+      expect(
+        await actions.cancelBookingAction(booking.id, {
+          notifyCustomer: false,
+        }),
+      ).toMatchObject({ ok: true, notice: "skipped" });
     });
   },
 );
