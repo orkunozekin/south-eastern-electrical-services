@@ -164,16 +164,23 @@ export async function getBookingSettings(): Promise<BookingSettings> {
 
 export async function saveBookingSettings(
   settings: BookingSettings,
+  fields?: (keyof BookingSettings)[],
 ): Promise<void> {
   await getAdminDb()
     .collection(COLLECTIONS.settings)
     .doc(SETTINGS_BOOKING_DOC)
     .set(
       {
-        timezone: settings.timezone,
-        slotDurationMinutes: settings.slotDurationMinutes,
-        weeklyHours: settings.weeklyHours,
-        notifyEmails: settings.notifyEmails,
+        ...Object.fromEntries(
+          Object.entries({
+            timezone: settings.timezone,
+            slotDurationMinutes: settings.slotDurationMinutes,
+            weeklyHours: settings.weeklyHours,
+            notifyEmails: settings.notifyEmails,
+          }).filter(
+            ([key]) => !fields || fields.includes(key as keyof BookingSettings),
+          ),
+        ),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true },

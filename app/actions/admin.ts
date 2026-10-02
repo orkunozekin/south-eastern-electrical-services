@@ -24,7 +24,11 @@ import {
   saveBookingSettings,
 } from "@/lib/booking/server";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
-import { resolveRecipients, sendCustomerCancellation } from "@/lib/plunk";
+import {
+  maskedBootstrapRecipients,
+  resolveRecipients,
+  sendCustomerCancellation,
+} from "@/lib/plunk";
 import { formatWithShortZone } from "@/lib/timezone";
 
 export type AdminBookingDto = {
@@ -203,14 +207,21 @@ export async function cancelBookingAction(
 }
 
 export async function getAdminSettingsAction(): Promise<
-  { ok: true; settings: BookingSettings } | { ok: false; error: string }
+  | { ok: true; settings: BookingSettings; bootstrapRecipients: string[] }
+  | { ok: false; error: string }
 > {
   const auth = await assertAdmin();
   if (!auth.ok) return auth;
 
   try {
     const settings = await getBookingSettings();
-    return { ok: true, settings };
+    return {
+      ok: true,
+      settings,
+      bootstrapRecipients: settings.notifyEmails.length
+        ? []
+        : maskedBootstrapRecipients(),
+    };
   } catch (error) {
     return { ok: false, error: toActionError(error) };
   }
@@ -239,6 +250,12 @@ export async function saveAdminSettingsAction(input: {
     };
   }
 
+  if (!Array.isArray(input.notifyEmails) || !input.notifyEmails.length)
+    return {
+      ok: false,
+      error: "Add at least one email address to receive booking notifications.",
+    };
+
   for (const email of input.notifyEmails) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return { ok: false, error: `Invalid email: ${email}` };
@@ -259,13 +276,17 @@ export async function saveAdminSettingsAction(input: {
 
   try {
     const current = await getBookingSettings();
-    await saveBookingSettings({
-      ...current,
-      timezone: input.timezone.trim(),
-      slotDurationMinutes: input.slotDurationMinutes,
-      notifyEmails: input.notifyEmails,
-      weeklyHours: input.weeklyHours,
-    });
+    await saveBookingSettings(
+      {
+        ...current,
+        timezone: input.timezone.trim(),
+        slotDurationMinutes: input.slotDurationMinutes,
+        notifyEmails: [
+          ...new Set(input.notifyEmails.map((e) => e.trim().toLowerCase())),
+        ],
+      },
+      ["timezone", "slotDurationMinutes", "notifyEmails"],
+    );
     revalidatePath("/admin");
     revalidatePath("/admin/settings");
     revalidatePath("/admin/availability");
@@ -369,7 +390,7 @@ export async function saveWeeklyHoursAction(
 
   try {
     const current = await getBookingSettings();
-    await saveBookingSettings({ ...current, weeklyHours });
+    await saveBookingSettings({ ...current, weeklyHours }, ["weeklyHours"]);
     revalidatePath("/admin/availability");
     revalidatePath("/book");
     return { ok: true };
