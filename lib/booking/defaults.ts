@@ -19,6 +19,7 @@ export const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
 export const COLLECTIONS = {
   settings: "settings",
   bookings: "bookings",
+  bookingDays: "bookingDays",
   availabilityOverrides: "availabilityOverrides",
   slots: "slots",
 } as const;
