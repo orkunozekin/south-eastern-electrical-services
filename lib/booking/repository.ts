@@ -8,7 +8,7 @@ import {
 import { addDays, subMinutes } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 
-import { buildInviteUid } from "@/lib/calendar-invite";
+import { inviteIdentity } from "./invite-identity";
 import { getAdminDb } from "@/lib/firebase/admin";
 
 import {
@@ -147,6 +147,7 @@ function bookingFromDoc(doc: QueryDocumentSnapshot): Booking {
     ...optionalString("email", data.email),
     ...optionalString("customerTimezone", data.customerTimezone),
     ...optionalString("inviteUid", data.inviteUid),
+    ...optionalString("inviteOrganizerEmail", data.inviteOrganizerEmail),
     startsAt: toDate(data.startsAt),
     endsAt: toDate(data.endsAt),
     status: data.status as BookingStatus,
@@ -411,14 +412,7 @@ export async function createBooking(
       );
     }
     const now = Timestamp.now();
-    const identity = fields.value.email
-      ? {
-          inviteUid: buildInviteUid(
-            bookingRef.id,
-            process.env.PLUNK_FROM_EMAIL,
-          ),
-        }
-      : {};
+    const identity = fields.value.email ? inviteIdentity(bookingRef.id) : {};
     const booking: Booking = {
       id: bookingRef.id,
       ...fields.value,
@@ -448,49 +442,45 @@ export async function createBooking(
   });
 }
 
-/**
- * `changed` is false when the booking was already cancelled, so callers can
- * avoid repeating side effects such as emailing the customer.
- */
 export async function cancelBooking(
   id: string,
 ): Promise<{ booking: Booking; changed: boolean }> {
-  const db = getAdminDb();
-  const bookingRef = db.collection(COLLECTIONS.bookings).doc(id);
-
-  const changed = await db.runTransaction(async (tx) => {
-    const snap = await tx.get(bookingRef);
-    if (!snap.exists) {
-      throw new BookingError("Booking not found.", "NOT_FOUND");
-    }
-
-    const data = snap.data()!;
-    if (data.status === "cancelled") {
-      return false;
-    }
-
-    tx.update(bookingRef, {
-      status: "cancelled" satisfies BookingStatus,
-      cancelledAt: FieldValue.serverTimestamp(),
+  const ref = getAdminDb().collection(COLLECTIONS.bookings).doc(id);
+  return getAdminDb().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new BookingError("Booking not found.", "NOT_FOUND");
+    const booking = bookingFromDoc(snap as QueryDocumentSnapshot);
+    if (booking.status === "cancelled") return { booking, changed: false };
+    const cancelledAt = Timestamp.now();
+    tx.update(ref, {
+      status: "cancelled",
+      cancelledAt,
+      cancelNotice: null,
+      cancelNoticeReason:
+        "Notification result pending. Check before contacting the customer.",
     });
-    return true;
+    return {
+      booking: {
+        ...booking,
+        status: "cancelled",
+        cancelledAt: cancelledAt.toDate(),
+      },
+      changed: true,
+    };
   });
-
-  const updated = await getBooking(id);
-  if (!updated) {
-    throw new BookingError("Booking not found.", "NOT_FOUND");
-  }
-  return { booking: updated, changed };
 }
 
 export async function recordCancelNotice(
   id: string,
   notice: CancelNotice,
-  reason: string | null,
+  reason?: string,
 ): Promise<void> {
-  await getAdminDb().collection(COLLECTIONS.bookings).doc(id).update({
-    cancelNotice: notice,
-    cancelNoticeAt: FieldValue.serverTimestamp(),
-    cancelNoticeReason: reason,
-  });
+  await getAdminDb()
+    .collection(COLLECTIONS.bookings)
+    .doc(id)
+    .update({
+      cancelNotice: notice,
+      cancelNoticeAt: FieldValue.serverTimestamp(),
+      cancelNoticeReason: reason ?? null,
+    });
 }

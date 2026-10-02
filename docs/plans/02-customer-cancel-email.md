@@ -2,9 +2,6 @@
 
 **Type:** Feature · **Size:** Medium · **Depends on:** —
 
-**Status:** Phases 1 and 2 implemented (uncommitted, 2026-09-29). Real Plunk
-delivery not yet verified. See [Handoff](#handoff).
-
 ## Request
 
 > Cancelling or clearing a booking should notify the customer by email and ask
@@ -71,12 +68,12 @@ Not yet done:
 
 ## Decisions needed
 
-| Question                                         | Recommendation                                                                                                                |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| Email field hint wording                         | "Optional. We'll send a calendar invite, and may email you if we need to reschedule. We'll still call your phone either way." |
-| Reply-to address                                 | The first `notifyEmails` address, so customer replies reach the business.                                                     |
-| Business phone number to include in the email    | Ask the client. Also worth adding to the site footer and contact page.                                                        |
-| Should the admin be able to add a personal note? | Yes, an optional short message included in the email (e.g. "Sorry, I'm out on an emergency job").                             |
+| Question                                         | Recommendation                                                                                                               |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| Email field hint wording                         | "Optional. We'll send a calendar invite, and let you know if we need to reschedule. We'll still call your phone either way." |
+| Reply-to address                                 | The first `notifyEmails` address, so customer replies reach the business.                                                    |
+| Business phone number to include in the email    | Ask the client. Also worth adding to the site footer and contact page.                                                       |
+| Should the admin be able to add a personal note? | Yes, an optional short message included in the email (e.g. "Sorry, I'm out on an emergency job").                            |
 
 ## Design
 
@@ -136,9 +133,14 @@ the customer's calendar. So:
    customer doesn't have is harmless: calendar clients ignore it or show a
    notice, and the email body already says the call is cancelled. Missing a
    real event is the worse failure. No `inviteUid` only happens for bookings
-   without an email, which get no cancellation email anyway.
-5. **No backfill.** There's no real production data yet, so every real
-   booking will be created with `inviteUid` already stored.
+   without an email, which get no cancellation email anyway, or for legacy
+   bookings the backfill below didn't cover.
+5. **Backfill for bookings made before this ships:** a one-off script sets
+   `inviteUid = booking-{id}@{current sender domain}` on upcoming confirmed
+   bookings that have an email. It must run **before** any change to
+   `PLUNK_FROM_EMAIL`'s domain, while the current domain is still the one
+   their invites were sent with. Note in the script that it's only valid for
+   that reason.
 
 ### Email (`lib/plunk.ts`)
 
@@ -159,7 +161,7 @@ built on the existing `sendViaPlunk`:
 
 ### Reschedule link
 
-- Add a `SITE_URL` env var (`https://www.southeasternelectrical.org`), and
+- Add a `SITE_URL` env var (e.g. `https://southeasternelectrical.org`), and
   document it in `.env.example`.
 - The link is `${SITE_URL}/book?ref=cancelled`. The `ref` value is only for a
   friendlier heading on `/book` ("Sorry we had to cancel. Pick a new time
@@ -241,6 +243,8 @@ notifying, so:
 - [x] `createBooking` stores `inviteUid` in the booking transaction when an
       email is given; `sendBookingConfirmation` takes that UID instead of
       building one
+- [ ] Run the prepared one-off backfill of `inviteUid` for existing upcoming bookings with an
+      email (run before any sender-domain change)
 - [x] `sendViaPlunk`: `replyTo` option
 - [x] `sendCustomerCancellation` and template with the `cancel.ics`
       attachment
@@ -255,10 +259,12 @@ notifying, so:
 - [x] Admin confirmation panel, result messages, notice status in the list
 - [x] `/book?ref=cancelled` heading variant
 
+The backfill script is prepared at `scripts/backfill-invite-uids.ts`; applying it to production requires owner approval and verification of the original sender.
+
 **Phase 3: script**
 
 - [x] `--yes` guard and upcoming count
-- [ ] Optional `--notify`
+- [x] Optional `--notify`
 
 **Docs**
 
@@ -276,7 +282,7 @@ Manual, with `BOOKING_NOTIFY_CONSOLE=true` locally, then real Plunk on a
 preview deploy. Per `AGENTS.md`, don't create test bookings against the
 production project without the owner's OK.
 
-- [x] Booking without email: cancel panel shows "No email on file"; nothing is
+- [ ] Booking without email: cancel panel shows "No email on file"; nothing is
       sent; status is `skipped`
 - [ ] Booking with email: customer receives the email with the correct local
       time, the admin message, and a working link
@@ -286,20 +292,20 @@ production project without the owner's OK.
 - [ ] Domain change: book (UID stored), change `PLUNK_FROM_EMAIL` to another
       verified domain on a preview deploy, cancel, and confirm the event is
       still removed (the stored UID is used, not a rebuilt one)
-- [x] Booking with email: `inviteUid` is on the booking document right after
+- [ ] Booking with email: `inviteUid` is on the booking document right after
       it's created, and the confirmation invite uses the same UID
 - [ ] Confirmation failed at booking time (simulate a Plunk failure): the
       booking still has `inviteUid`, and the cancellation email includes the
       `.ics` cancel
-- [x] Booking without email: no `inviteUid` is stored
+- [ ] Booking without email: no `inviteUid` is stored
 - [ ] Untick "Email the customer": nothing is sent; status is `skipped`
 - [ ] Simulate a Plunk failure (bad API key on preview): the booking is still
       cancelled, the slot is freed, the UI says "Email failed", status is
       `failed`
 - [ ] Cancelling a past booking doesn't email
-- [x] Double-clicking Cancel sends only one email (idempotency key + status
+- [ ] Double-clicking Cancel sends only one email (idempotency key + status
       check)
-- [x] An HTML or script tag in the admin message is escaped in the email
+- [ ] An HTML or script tag in the admin message is escaped in the email
 - [ ] A booking made before `customerTimezone` existed gets a
       business-timezone time with its abbreviation
 
@@ -310,40 +316,14 @@ production project without the owner's OK.
   show it as a notice. The email body must say the call is cancelled on its
   own terms, without relying on the attachment.
 - **Sender domain changes:** handled by storing `inviteUid` when the booking
-  is created.
+  is created. The remaining risk is running the backfill _after_ a domain change,
+  which would stamp legacy bookings with the wrong UID. Run it in the same
+  deploy as this feature.
 - **Low uptake:** if few customers leave an email, admins still need to call.
   The UI makes that explicit rather than implying everyone was notified.
 
-## Handoff
+## Implementation handoff
 
-**Done (2026-09-29):**
+Cancellation, notices, admin UI, guarded reset scripts, and invite UID backfill tooling are implemented. Invite UID and original organizer email are saved transactionally. Repeated cancellation never resends; missing/failed notice metadata is shown explicitly. Configure SITE_URL and a verified sender before rollout. The production backfill was not run; confirm the original sender and run it before changing sender domain. Actual calendar behaviour in Gmail, Outlook, and Apple remains a preview-deployment check.
 
-- Phases 1 and 2 as checked above. The cancel email is sent by
-  `notifyCustomerOfCancel` in `app/actions/admin.ts`, via
-  `sendCustomerCancellation` in `lib/plunk.ts`.
-- Phase 3: `scripts/clear-bookings.mjs` is a dry run unless `--yes` is passed,
-  and it prints the number of upcoming bookings first.
-- Browser test on localhost against production Firestore, approved by the owner.
-  Two test bookings on Tue Oct 6 ("Test Cancel Email" at 10:30 and "Test No
-  Email" at 11:00 CT) were created and cancelled. They remain as cancelled
-  records. `inviteUid` and `customerTimezone` were stored, the panel and
-  result messages worked, the Recent list showed notice status, and a
-  double-click sent one email. The email HTML escaped a `<script>` in the
-  admin message.
-- "Test No Email" was cancelled before a fix, so its record says
-  "admin chose not to notify" instead of "no email on file". The order of the
-  checks is now fixed.
-
-**Remaining:**
-
-1. Verify real delivery. `.env.local` has no `PLUNK_FROM_EMAIL`, so locally
-   the notice is `skipped: Email not configured`, and the email only prints to
-   the server terminal. On a preview deploy with a verified sender: the email
-   arrives, the link works, and the invite is removed in Gmail and
-   Outlook/iCloud. Also check the Plunk failure case (bad key) and the
-   sender-domain change case.
-2. Set `SITE_URL=https://www.southeasternelectrical.org` (and optionally
-   `BUSINESS_PHONE`) in Vercel. Without `SITE_URL`, the link falls back to
-   `VERCEL_PROJECT_PRODUCTION_URL`.
-3. Optional `--notify` for the clear script (not started).
-4. Ask the client for the business phone number (open decision).
+Verified locally: 44 unit tests and 12 guarded Firestore emulator tests, TypeScript, lint, formatting, and production build. No production settings, bookings, or emails were changed. Original manual checklists above remain unchecked where real provider/client testing has not been performed.

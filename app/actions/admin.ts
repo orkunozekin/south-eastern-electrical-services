@@ -6,33 +6,30 @@ import {
 } from "@/lib/booking/settings-validation";
 import { revalidatePath } from "next/cache";
 
-import { getVerifiedAdmin } from "@/lib/auth/session";
+import { getVerifiedAdmin, requireAdmin } from "@/lib/auth/session";
 import {
   isValidDateString,
   isValidTime,
   type AvailabilityOverride,
-  type Booking,
   type BookingSettings,
   type CancelNotice,
   type WeeklyHours,
 } from "@/lib/booking";
 import {
   BookingError,
-  cancelBooking,
   deleteAvailabilityOverride,
   getBookingSettings,
   listAvailabilityOverrides,
   listBookings,
-  recordCancelNotice,
   saveAvailabilityOverride,
   saveBookingSettings,
 } from "@/lib/booking/server";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
+import { maskedBootstrapRecipients } from "@/lib/plunk";
 import {
-  maskedBootstrapRecipients,
-  resolveRecipients,
-  sendCustomerCancellation,
-} from "@/lib/plunk";
+  cancelAndNotify,
+  type CancellationResult,
+} from "@/lib/booking/cancellation";
 import { formatWithShortZone } from "@/lib/timezone";
 
 export type AdminBookingDto = {
@@ -119,95 +116,26 @@ export async function getAdminBookingsAction(): Promise<
   }
 }
 
-const CANCEL_MESSAGE_MAX = 500;
-
-function siteUrl(): string {
-  const configured = process.env.SITE_URL?.trim().replace(/\/+$/, "");
-  if (configured) return configured;
-  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  if (vercel) return `https://${vercel}`;
-  return "http://localhost:3333";
-}
-
-async function notifyCustomerOfCancel(
-  booking: Booking,
-  options: { notifyCustomer: boolean; message?: string },
-): Promise<{ notice: CancelNotice; reason: string | null }> {
-  if (!booking.email) {
-    return { notice: "skipped", reason: "No email on file" };
-  }
-  if (!options.notifyCustomer) {
-    return { notice: "skipped", reason: "Admin chose not to notify" };
-  }
-  if (booking.startsAt.getTime() <= Date.now()) {
-    return { notice: "skipped", reason: "Booking time has passed" };
-  }
-
-  try {
-    const settings = await getBookingSettings();
-    const result = await sendCustomerCancellation({
-      booking,
-      whenLabel: formatWithShortZone(
-        booking.startsAt,
-        booking.customerTimezone ?? settings.timezone,
-        "EEEE, MMM d · h:mm a",
-      ),
-      message: options.message,
-      rescheduleUrl: `${siteUrl()}/book?ref=cancelled`,
-      businessPhone: process.env.BUSINESS_PHONE?.trim() || undefined,
-      replyTo: resolveRecipients(settings.notifyEmails)[0],
-    });
-    return result === "sent"
-      ? { notice: "sent", reason: null }
-      : { notice: "skipped", reason: "Email not configured" };
-  } catch (error) {
-    console.error("[plunk] Failed to send customer cancellation:", error);
-    return { notice: "failed", reason: "Email could not be sent" };
-  }
-}
-
 export async function cancelBookingAction(
-  bookingId: string,
+  id: string,
   options: { notifyCustomer: boolean; message?: string },
-): Promise<
-  | { ok: true; notice: CancelNotice; noticeReason?: string }
-  | { ok: false; error: string }
-> {
-  const auth = await assertAdmin();
-  if (!auth.ok) return auth;
-
-  const message = options.message?.trim().slice(0, CANCEL_MESSAGE_MAX);
-
-  let cancelled: Awaited<ReturnType<typeof cancelBooking>>;
+): Promise<({ ok: true } & CancellationResult) | { ok: false; error: string }> {
+  await requireAdmin();
+  if (!options || typeof options.notifyCustomer !== "boolean")
+    return { ok: false, error: "Choose whether to email the customer." };
+  const invalid =
+    options.message !== undefined &&
+    (typeof options.message !== "string" || options.message.length > 500)
+      ? "Keep the customer message under 500 characters."
+      : null;
+  if (invalid) return { ok: false, error: invalid };
   try {
-    cancelled = await cancelBooking(bookingId);
+    const result = await cancelAndNotify(id, options);
+    revalidatePath("/admin");
+    return { ok: true, ...result };
   } catch (error) {
     return { ok: false, error: toActionError(error) };
   }
-
-  const { booking, changed } = cancelled;
-  if (!changed) {
-    revalidatePath("/admin");
-    return {
-      ok: true,
-      notice: booking.cancelNotice ?? "skipped",
-      noticeReason: booking.cancelNoticeReason ?? "Already cancelled",
-    };
-  }
-
-  const { notice, reason } = await notifyCustomerOfCancel(booking, {
-    notifyCustomer: options.notifyCustomer,
-    message: message || undefined,
-  });
-
-  try {
-    await recordCancelNotice(booking.id, notice, reason);
-  } catch (error) {
-    console.error("[booking] Failed to record cancel notice:", error);
-  }
-
-  revalidatePath("/admin");
-  return { ok: true, notice, ...(reason ? { noticeReason: reason } : {}) };
 }
 
 export async function getAdminSettingsAction(): Promise<
