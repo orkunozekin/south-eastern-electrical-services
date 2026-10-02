@@ -87,17 +87,29 @@ function parseWeeklyHours(value: unknown): WeeklyHours | undefined {
   return result;
 }
 
-function mergeSettings(data: DocumentData | undefined): BookingSettings {
+export function mergeSettings(data: DocumentData | undefined): BookingSettings {
   if (!data) return { ...DEFAULT_BOOKING_SETTINGS };
 
   return {
+    minNoticeMinutes:
+      Number.isInteger(data.minNoticeMinutes) &&
+      data.minNoticeMinutes >= 0 &&
+      data.minNoticeMinutes <= 10080
+        ? data.minNoticeMinutes
+        : DEFAULT_BOOKING_SETTINGS.minNoticeMinutes,
+    bookingWindowDays:
+      Number.isInteger(data.bookingWindowDays) &&
+      data.bookingWindowDays >= 1 &&
+      data.bookingWindowDays <= 90
+        ? data.bookingWindowDays
+        : DEFAULT_BOOKING_SETTINGS.bookingWindowDays,
     timezone:
       typeof data.timezone === "string"
         ? data.timezone
         : DEFAULT_BOOKING_SETTINGS.timezone,
     slotDurationMinutes:
-      typeof data.slotDurationMinutes === "number" &&
-      data.slotDurationMinutes > 0 &&
+      Number.isInteger(data.slotDurationMinutes) &&
+      data.slotDurationMinutes >= 15 &&
       data.slotDurationMinutes <= MAX_SLOT_MINUTES
         ? data.slotDurationMinutes
         : DEFAULT_BOOKING_SETTINGS.slotDurationMinutes,
@@ -185,6 +197,8 @@ export async function saveBookingSettings(
             slotDurationMinutes: settings.slotDurationMinutes,
             weeklyHours: settings.weeklyHours,
             notifyEmails: settings.notifyEmails,
+            minNoticeMinutes: settings.minNoticeMinutes,
+            bookingWindowDays: settings.bookingWindowDays,
           }).filter(
             ([key]) => !fields || fields.includes(key as keyof BookingSettings),
           ),
