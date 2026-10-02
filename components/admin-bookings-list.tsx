@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { cancelBookingAction, type AdminBookingDto } from "@/app/actions/admin";
-import type { CancelNotice } from "@/lib/booking";
+import { cancellationNoticeLabel } from "@/lib/booking/notice-label";
+import type { CancellationResult } from "@/lib/booking/cancellation";
 import { formatWithShortZone } from "@/lib/timezone";
 import { useViewerTimezone } from "@/lib/use-viewer-timezone";
 
@@ -23,44 +24,22 @@ function bookingWhenLabel(startsAt: string, viewerTimezone: string): string {
 
 function describeCancelResult(
   booking: AdminBookingDto,
-  notice: CancelNotice,
-  reason: string | undefined,
+  result: CancellationResult,
 ): CancelResult {
-  const callHint = `please call ${booking.name} at ${booking.phoneDisplay}.`;
-  if (notice === "sent") {
-    return {
-      tone: "ok",
-      text: `Cancelled. ${booking.name} was emailed and their calendar invite was cancelled.`,
-    };
-  }
-  if (notice === "failed") {
-    return { tone: "warn", text: `Cancelled. Email failed, ${callHint}` };
-  }
-  switch (reason) {
-    case "No email on file":
-      return { tone: "warn", text: `Cancelled. No email on file, ${callHint}` };
-    case "Admin chose not to notify":
-      return {
-        tone: "warn",
-        text: `Cancelled. The customer wasn’t emailed, ${callHint}`,
-      };
-    case "Booking time has passed":
-      return {
-        tone: "warn",
-        text: `Cancelled. The booking time had passed, so no email was sent; ${callHint}`,
-      };
-    case "Email not configured":
-      return {
-        tone: "warn",
-        text: `Cancelled. Customer emails aren’t set up, ${callHint}`,
-      };
-    default:
-      return { tone: "ok", text: "This booking was already cancelled." };
-  }
+  const call =
+    result.notice === "failed" || result.notice === "skipped"
+      ? ` Call ${booking.name} at ${booking.phoneDisplay}.`
+      : "";
+  return {
+    tone: result.notice === "sent" && result.recorded ? "ok" : "warn",
+    text: `Cancelled. ${cancellationNoticeLabel(result)}${call}`,
+  };
 }
 
 function noticeLabel(booking: AdminBookingDto): string | null {
-  if (booking.status !== "cancelled" || !booking.cancelNotice) return null;
+  if (booking.status !== "cancelled") return null;
+  if (!booking.cancelNotice)
+    return "notification pending: check before contacting the customer";
   if (booking.cancelNotice === "sent") return "customer emailed";
   if (booking.cancelNotice === "failed") return "email failed";
   return booking.cancelNoticeReason
@@ -138,9 +117,7 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
         return;
       }
       setConfirmingId(null);
-      setResult(
-        describeCancelResult(booking, response.notice, response.noticeReason),
-      );
+      setResult(describeCancelResult(booking, response));
       router.refresh();
     });
   }
