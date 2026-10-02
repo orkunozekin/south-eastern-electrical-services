@@ -59,7 +59,8 @@ async function loadBookingServer() {
 }
 
 export async function fetchBookingCalendarAction(): Promise<
-  { ok: true; timezone: string; dates: string[] } | { ok: false; error: string }
+  | { ok: true; timezone: string; dates: string[]; bookingWindowDays: number }
+  | { ok: false; error: string }
 > {
   if (!isFirebaseAdminConfigured()) {
     return { ok: false, error: UNAVAILABLE };
@@ -72,7 +73,12 @@ export async function fetchBookingCalendarAction(): Promise<
     const settings = await getBookingSettings();
     const candidates = getBookableDateStrings(settings);
     if (candidates.length === 0) {
-      return { ok: true, timezone: settings.timezone, dates: [] };
+      return {
+        ok: true,
+        timezone: settings.timezone,
+        dates: [],
+        bookingWindowDays: settings.bookingWindowDays,
+      };
     }
 
     const overrides = await listAvailabilityOverrides({
@@ -86,6 +92,7 @@ export async function fetchBookingCalendarAction(): Promise<
     return {
       ok: true,
       timezone: settings.timezone,
+      bookingWindowDays: settings.bookingWindowDays,
       dates: candidates.filter((date) => !closed.has(date)),
     };
   } catch (error) {
@@ -162,15 +169,14 @@ export async function submitBookingAction(input: {
 
     try {
       const settings = await getBookingSettings();
-      const customerTimezone = isValidTimezone(input.timezone)
-        ? input.timezone
-        : undefined;
       const booking = await createBooking({
         name: input.name,
         phone: input.phone,
         email: input.email,
-        timezone: customerTimezone,
         startsAt,
+        timezone: isValidTimezone(input.timezone)
+          ? input.timezone
+          : settings.timezone,
       });
 
       // Business notification stays in the configured business timezone.
@@ -181,7 +187,7 @@ export async function submitBookingAction(input: {
       );
       const customerLabel = formatWithShortZone(
         booking.startsAt,
-        customerTimezone ?? settings.timezone,
+        isValidTimezone(input.timezone) ? input.timezone : settings.timezone,
         "EEEE, MMM d · h:mm a",
       );
 

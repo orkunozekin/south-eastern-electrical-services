@@ -182,5 +182,22 @@ describe.skipIf(!enabled)(
         status: "confirmed",
       });
     });
+    it("rejects forged timestamps, notice violations and dates outside the window", async () => {
+      await expect(
+        repo.createBooking({
+          ...input("09:00"),
+          startsAt: new Date(+startsAt("09:00") + 1000),
+        }),
+      ).rejects.toMatchObject({ code: "SLOT_UNAVAILABLE" });
+      await repo.saveBookingSettings({ ...settings, bookingWindowDays: 1 });
+      expect(await repo.listAvailableSlots(tomorrow)).toEqual([]);
+      await expect(repo.createBooking(input("09:00"))).rejects.toMatchObject({
+        code: "SLOT_UNAVAILABLE",
+      });
+      await repo.saveBookingSettings({ ...settings, minNoticeMinutes: 10080 });
+      await expect(repo.createBooking(input("09:00"))).rejects.toMatchObject({
+        code: "SLOT_UNAVAILABLE",
+      });
+    });
   },
 );

@@ -10,6 +10,7 @@ import {
   type BookingDto,
   type SlotDto,
 } from "@/app/actions/booking";
+import { bookingCalendarWeeks } from "@/lib/booking";
 import {
   formatInZone,
   formatWithShortZone,
@@ -57,9 +58,16 @@ export function BookingWizard({
   const [calendar, setCalendar] = useState({
     dates: initialDates,
     timezone: initialTimezone,
+    bookingWindowDays: 14,
   });
   const [calendarLoaded, setCalendarLoaded] = useState(!configured);
-  const { dates, timezone } = calendar;
+  const { dates, timezone, bookingWindowDays } = calendar;
+  const [weekIndex, setWeekIndex] = useState(0);
+  const weeks = bookingCalendarWeeks({ timezone, bookingWindowDays });
+  const pagedCalendar = bookingWindowDays > 21;
+  const visibleDates = pagedCalendar
+    ? dates.filter((date) => weeks[weekIndex]?.includes(date))
+    : dates;
   const viewerTimezone = useViewerTimezone(timezone);
   const [selectedDate, setSelectedDate] = useState<string | null>(
     initialDates[0] ?? null,
@@ -85,7 +93,11 @@ export function BookingWizard({
       if (cancelled) return;
 
       if (result.ok) {
-        setCalendar({ dates: result.dates, timezone: result.timezone });
+        setCalendar({
+          dates: result.dates,
+          timezone: result.timezone,
+          bookingWindowDays: result.bookingWindowDays,
+        });
         setSelectedDate((current) =>
           current && result.dates.includes(current)
             ? current
@@ -129,6 +141,7 @@ export function BookingWizard({
     setSlotsRequestId((id) => id + 1);
     setSelectedSlot(null);
     setSlotsError(null);
+    setSlots([]);
   }
 
   function handleSubmit(event: FormEvent) {
@@ -147,6 +160,8 @@ export function BookingWizard({
 
       if (!result.ok) {
         setFormError(result.error);
+        setSelectedSlot(null);
+        setSlotsRequestId((id) => id + 1);
         return;
       }
 
@@ -194,6 +209,7 @@ export function BookingWizard({
             setPhone("");
             setEmail("");
             setFormError(null);
+            setSlotsRequestId((id) => id + 1);
           }}
           className="text-amber hover:text-amber-hot mt-8 cursor-pointer text-sm font-semibold tracking-wide"
         >
@@ -223,14 +239,63 @@ export function BookingWizard({
             No days are open for booking right now. Please call us instead.
           </p>
         )}
+        {calendarLoaded && pagedCalendar && (
+          <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-white">
+            <button
+              type="button"
+              disabled={weekIndex === 0 || pendingSubmit}
+              onClick={() => {
+                const next = weekIndex - 1;
+                setWeekIndex(next);
+                const date = dates.find((d) => weeks[next].includes(d));
+                setSlots([]);
+                setSelectedSlot(null);
+                setSelectedDate(null);
+                if (date) selectDate(date);
+              }}
+              className="border border-white/20 px-3 py-2 disabled:opacity-40"
+            >
+              ← Previous week
+            </button>
+            <span>
+              Week of{" "}
+              {weeks[weekIndex]?.[0]
+                ? formatDateChip(weeks[weekIndex][0], timezone).day
+                : ""}
+            </span>
+            <button
+              type="button"
+              disabled={weekIndex >= weeks.length - 1 || pendingSubmit}
+              onClick={() => {
+                const next = weekIndex + 1;
+                setWeekIndex(next);
+                const date = dates.find((d) => weeks[next].includes(d));
+                setSlots([]);
+                setSelectedSlot(null);
+                setSelectedDate(null);
+                if (date) selectDate(date);
+              }}
+              className="border border-white/20 px-3 py-2 disabled:opacity-40"
+            >
+              Next week →
+            </button>
+            {visibleDates.length === 0 && (
+              <p className="text-mist/70">
+                No open days this week. Try another week.
+              </p>
+            )}
+          </div>
+        )}
         <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
-          {(calendarLoaded ? dates : []).map((date) => {
+          {(calendarLoaded ? visibleDates : []).map((date) => {
             const chip = formatDateChip(date, timezone);
             const active = date === selectedDate;
             return (
               <button
                 key={date}
                 type="button"
+                disabled={pendingSubmit || !configured}
+                aria-pressed={active}
                 onClick={() => selectDate(date)}
                 className={`min-w-[5.5rem] shrink-0 cursor-pointer px-3 py-3 text-left transition ${
                   active
@@ -285,6 +350,8 @@ export function BookingWizard({
               <button
                 key={slot.slotId}
                 type="button"
+                disabled={pendingSubmit || pendingSlots}
+                aria-pressed={active}
                 onClick={() => setSelectedSlot(slot)}
                 className={`cursor-pointer px-3 py-3 text-sm font-semibold tracking-wide transition ${
                   active
@@ -361,7 +428,7 @@ export function BookingWizard({
                 placeholder="jane@example.com"
               />
               <span id="email-hint" className="text-mist/60 mt-2 block text-sm">
-                Optional. We’ll send a calendar invite, and may email you if we
+                Optional. We’ll send a calendar invite and may email you if we
                 need to reschedule. We’ll still call your phone either way.
               </span>
             </label>
@@ -371,7 +438,7 @@ export function BookingWizard({
 
           <button
             type="submit"
-            disabled={pendingSubmit}
+            disabled={pendingSubmit || pendingSlots || !configured}
             className="bg-amber text-navy-deep hover:bg-amber-hot cursor-pointer px-6 py-3 text-base font-semibold tracking-wide transition disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pendingSubmit ? "Booking…" : "Confirm callback"}
