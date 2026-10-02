@@ -164,17 +164,17 @@ preview covers any that end up outside availability.
 
 ## Implementation steps
 
-- [ ] `getAvailableSlots` takes booked ranges and filters by overlap
-- [ ] `getBookedRangesForDate` replaces `getTakenSlotIdsForDate`, with the
+- [x] `getAvailableSlots` takes booked ranges and filters by overlap
+- [x] `getBookedRangesForDate` replaces `getTakenSlotIdsForDate`, with the
       `MAX_SLOT_MINUTES` lookback before the day's start
-- [ ] Remove the `slots/{slotId}` read and write from `createBooking`, and the
+- [x] Remove the `slots/{slotId}` read and write from `createBooking`, and the
       `slots` write from `cancelBooking`
-- [ ] `createBooking` transaction: read and write a `bookingDays/{date}` lock
+- [x] `createBooking` transaction: read and write a `bookingDays/{date}` lock
       document, then run the overlapping-bookings query before writing
-- [ ] `saveOverrideAction`: validate blocked slots against the generated grid
-- [ ] Settings: notice when upcoming bookings exist and slot length changes
-- [ ] Unit tests for overlap filtering (if Vitest is added)
-- [ ] Update `docs/admin-guide.md`: soften the §6.2 warning; replace the §5.2
+- [x] `saveOverrideAction`: validate blocked slots against the generated grid
+- [x] Settings: notice when upcoming bookings exist and slot length changes
+- [x] Unit tests for overlap filtering (if Vitest is added)
+- [x] Update `docs/admin-guide.md`: soften the §6.2 warning; replace the §5.2
       "nothing gets blocked" gotcha and the troubleshooting row with the new
       validation error
 
@@ -212,3 +212,9 @@ Manual:
   delete it alongside `bookings`.
 - **Behaviour change in one function:** both `/book` and `createBooking` use
   `getAvailableSlots`, so one change fixes both paths. Test both.
+
+## Implementation handoff
+
+Availability uses actual booked ranges and booking transactions recheck settings, overrides, notice/window limits and overlaps. Legacy slots are no longer read or written. Shared lock documents use UTC dates (both dates for appointments crossing UTC midnight) rather than business-local dates, so locks remain consistent during timezone changes. Emulator tests confirm one concurrent overlapping booking succeeds and reproduce the original bug with the old slot-ID-only transaction. The emulator also rejected an overlap with transactional range reads and no day writes; the explicit shared locks are retained as a conservative guarantee. Blocked starts are validated when saving.
+
+Verified locally: 44 unit tests and 12 guarded Firestore emulator tests, TypeScript, lint, formatting, and production build. No production settings, bookings, or emails were changed. Original manual checklists above remain unchecked where real provider/client testing has not been performed.
