@@ -1,5 +1,9 @@
 "use server";
 
+import {
+  validateSettings,
+  type SettingsInput,
+} from "@/lib/booking/settings-validation";
 import { revalidatePath } from "next/cache";
 
 import { getVerifiedAdmin } from "@/lib/auth/session";
@@ -227,53 +231,13 @@ export async function getAdminSettingsAction(): Promise<
   }
 }
 
-export async function saveAdminSettingsAction(input: {
-  timezone: string;
-  slotDurationMinutes: number;
-  notifyEmails: string[];
-  weeklyHours: WeeklyHours;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function saveAdminSettingsAction(
+  input: SettingsInput,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const auth = await assertAdmin();
   if (!auth.ok) return auth;
-
-  if (!input.timezone.trim()) {
-    return { ok: false, error: "Timezone is required." };
-  }
-  if (
-    !Number.isInteger(input.slotDurationMinutes) ||
-    input.slotDurationMinutes < 15 ||
-    input.slotDurationMinutes > 120
-  ) {
-    return {
-      ok: false,
-      error: "Slot duration must be between 15 and 120 minutes.",
-    };
-  }
-
-  if (!Array.isArray(input.notifyEmails) || !input.notifyEmails.length)
-    return {
-      ok: false,
-      error: "Add at least one email address to receive booking notifications.",
-    };
-
-  for (const email of input.notifyEmails) {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return { ok: false, error: `Invalid email: ${email}` };
-    }
-  }
-
-  for (const ranges of Object.values(input.weeklyHours)) {
-    if (!ranges) continue;
-    for (const range of ranges) {
-      if (!isValidTime(range.start) || !isValidTime(range.end)) {
-        return { ok: false, error: "Weekly hours must use HH:mm times." };
-      }
-      if (range.start >= range.end) {
-        return { ok: false, error: "Each day’s end time must be after start." };
-      }
-    }
-  }
-
+  const invalid = validateSettings(input);
+  if (invalid) return { ok: false, error: invalid };
   try {
     const current = await getBookingSettings();
     await saveBookingSettings(
@@ -281,11 +245,19 @@ export async function saveAdminSettingsAction(input: {
         ...current,
         timezone: input.timezone.trim(),
         slotDurationMinutes: input.slotDurationMinutes,
+        minNoticeMinutes: input.minNoticeMinutes,
+        bookingWindowDays: input.bookingWindowDays,
         notifyEmails: [
           ...new Set(input.notifyEmails.map((e) => e.trim().toLowerCase())),
         ],
       },
-      ["timezone", "slotDurationMinutes", "notifyEmails"],
+      [
+        "timezone",
+        "slotDurationMinutes",
+        "notifyEmails",
+        "minNoticeMinutes",
+        "bookingWindowDays",
+      ],
     );
     revalidatePath("/admin");
     revalidatePath("/admin/settings");

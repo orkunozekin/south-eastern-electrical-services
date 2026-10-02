@@ -5,6 +5,8 @@ export {
   isDayOfWeek,
 } from "./defaults";
 export {
+  bookingCalendarWeeks,
+  bookingWindowEnd,
   getAvailableSlots,
   generateDaySlots,
   getBookableDateStrings,
