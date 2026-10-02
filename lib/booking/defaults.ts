@@ -14,14 +14,17 @@ export const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
     5: weekday("09:00", "17:00"),
   },
   notifyEmails: [],
+  // Preserve existing behaviour until the client chooses a notice period.
+  minNoticeMinutes: 0,
+  bookingWindowDays: 14,
 };
 
 export const COLLECTIONS = {
   settings: "settings",
   bookings: "bookings",
-  bookingDays: "bookingDays",
   availabilityOverrides: "availabilityOverrides",
-  slots: "slots",
+  slots: "slots", // Legacy collection, no longer used for availability.
+  bookingDays: "bookingDays",
 } as const;
 
 export const SETTINGS_BOOKING_DOC = "booking";

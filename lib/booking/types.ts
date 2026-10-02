@@ -14,6 +14,8 @@ export type BookingSettings = {
   slotDurationMinutes: number;
   weeklyHours: WeeklyHours;
   notifyEmails: string[];
+  minNoticeMinutes: number;
+  bookingWindowDays: number;
 };
 
 export type AvailabilityOverride = {
