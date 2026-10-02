@@ -45,6 +45,7 @@ export type Booking = {
    * verbatim, or the original event stays in the customer's calendar.
    */
   inviteUid?: string;
+  inviteOrganizerEmail?: string;
   startsAt: Date;
   endsAt: Date;
   status: BookingStatus;
