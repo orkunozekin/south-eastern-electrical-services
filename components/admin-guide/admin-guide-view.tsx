@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { GuidePrintButton } from "./guide-actions";
 import { GuideMarkdown } from "./guide-markdown";
+import { GuideSearch } from "./guide-search";
 import { GuideToc } from "./guide-toc";
 import {
   GUIDE_SECTION_IDS,
@@ -89,6 +90,10 @@ export function AdminGuideView({ guide }: AdminGuideViewProps) {
             <GuidePrintButton />
           </div>
         </div>
+
+        <GuideSearch
+          sections={guide.sections.map(({ id, title }) => ({ id, title }))}
+        />
 
         {quickLinks.length > 0 && (
           <ul className="animate-hero-rise-delay-2 relative mt-10 grid gap-px bg-white/10 sm:grid-cols-2 lg:grid-cols-3 print:hidden">
