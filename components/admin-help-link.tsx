@@ -1,17 +1,19 @@
-import Link from "next/link";
-
-import { guideHref, type GuideSectionKey } from "@/lib/admin-guide-links";
+import { GuideModal } from "@/components/admin-guide/guide-modal";
+import { AdminGuideView } from "@/components/admin-guide/admin-guide-view";
+import { loadAdminGuide } from "@/lib/admin-guide";
+import { type GuideSectionKey } from "@/lib/admin-guide-links";
 
 type AdminHelpLinkProps = {
   section: GuideSectionKey;
   children: React.ReactNode;
 };
 
-export function AdminHelpLink({ section, children }: AdminHelpLinkProps) {
+export async function AdminHelpLink({ section, children }: AdminHelpLinkProps) {
+  const guide = await loadAdminGuide();
   return (
-    <Link
-      href={guideHref(section)}
-      className="text-navy hover:bg-amber/15 group mt-4 inline-flex items-center gap-2 text-sm font-medium"
+    <GuideModal
+      section={section}
+      guide={<AdminGuideView guide={guide} showPrintButton={false} />}
     >
       <span
         aria-hidden
@@ -28,6 +30,6 @@ export function AdminHelpLink({ section, children }: AdminHelpLinkProps) {
       >
         →
       </span>
-    </Link>
+    </GuideModal>
   );
 }

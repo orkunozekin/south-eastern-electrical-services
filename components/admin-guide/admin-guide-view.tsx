@@ -45,9 +45,13 @@ const QUICK_LINKS: { key: GuideSectionKey; title: string; blurb: string }[] = [
 
 type AdminGuideViewProps = {
   guide: AdminGuide;
+  showPrintButton?: boolean;
 };
 
-export function AdminGuideView({ guide }: AdminGuideViewProps) {
+export function AdminGuideView({
+  guide,
+  showPrintButton = true,
+}: AdminGuideViewProps) {
   const numbers = new Map(guide.sections.map((s) => [s.id, s.number]));
   const quickLinks = QUICK_LINKS.filter((link) =>
     numbers.has(GUIDE_SECTION_IDS[link.key]),
@@ -86,9 +90,11 @@ export function AdminGuideView({ guide }: AdminGuideViewProps) {
                 ))}
             </div>
           </div>
-          <div className="animate-hero-rise-delay shrink-0">
-            <GuidePrintButton />
-          </div>
+          {showPrintButton && (
+            <div className="animate-hero-rise-delay shrink-0">
+              <GuidePrintButton />
+            </div>
+          )}
         </div>
 
         <GuideSearch
