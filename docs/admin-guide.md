@@ -119,10 +119,13 @@ the bottom-right corner. Click it to jump back to the top.
 ### Getting help while you work
 
 - Each admin page has a **help link** under its title (for example "How
-  bookings work"). It opens this guide at the section for that page.
+  bookings work"). It opens this guide in a pop-up at the section for that page,
+  without leaving your work. Click **Close** or press **Esc** to return.
 - In the guide, use **On this page** to jump to any section. It's on the left
   on a computer, and at the top on a phone.
-- To keep a copy, click **Print or save as PDF** at the top of the guide.
+- Use **Search this guide** at the top to find topics and instructions.
+- To keep a copy, choose **Open full page** from the pop-up, then click
+  **Print or save as PDF** at the top of the guide.
 
 ---
 
