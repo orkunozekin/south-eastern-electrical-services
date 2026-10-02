@@ -9,9 +9,13 @@ import { TIMEZONE_OPTIONS, friendlyTimezoneLabel } from "@/lib/timezone";
 
 type AdminSettingsFormProps = {
   settings: BookingSettings;
+  bootstrapRecipients?: string[];
 };
 
-export function AdminSettingsForm({ settings }: AdminSettingsFormProps) {
+export function AdminSettingsForm({
+  settings,
+  bootstrapRecipients = [],
+}: AdminSettingsFormProps) {
   const router = useRouter();
   const [timezone, setTimezone] = useState(settings.timezone);
   const [slotDurationMinutes, setSlotDurationMinutes] = useState(
@@ -93,11 +97,19 @@ export function AdminSettingsForm({ settings }: AdminSettingsFormProps) {
         />
       </label>
 
+      {bootstrapRecipients.length > 0 && (
+        <p className="text-slate text-sm">
+          Booking notifications currently use the setup address:{" "}
+          {bootstrapRecipients.join(", ")}. Add your email below to take over
+          notifications.
+        </p>
+      )}
       <label className="block">
         <span className="text-navy text-sm font-medium">
           Notify emails (one per line)
         </span>
         <textarea
+          required
           rows={4}
           value={notifyEmails}
           onChange={(e) => setNotifyEmails(e.target.value)}
