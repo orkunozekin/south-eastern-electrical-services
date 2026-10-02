@@ -70,13 +70,13 @@ developer's address to the client's happens on day one.
 
 ## Implementation steps
 
-- [ ] `resolveRecipients`: Settings list, else env (no merging)
-- [ ] Relax `isPlunkConfigured`
-- [ ] `saveAdminSettingsAction`: reject an empty notify list
-- [ ] Settings form: masked bootstrap notice while the list is empty
-- [ ] Update `.env.example`: comment `BOOKING_NOTIFY_EMAIL` as "Used only
+- [x] `resolveRecipients`: Settings list, else env (no merging)
+- [x] Relax `isPlunkConfigured`
+- [x] `saveAdminSettingsAction`: reject an empty notify list
+- [x] Settings form: masked bootstrap notice while the list is empty
+- [x] Update `.env.example`: comment `BOOKING_NOTIFY_EMAIL` as "Used only
       until an address is saved in Admin → Settings"
-- [ ] Update `docs/admin-guide.md` §6.3 (at least one address is required) and
+- [x] Update `docs/admin-guide.md` §6.3 (at least one address is required) and
       §7 (replace the "address behind the scenes" tip; add the first-step
       instruction)
 
@@ -90,3 +90,9 @@ developer's address to the client's happens on day one.
 - [ ] Save weekly hours after addresses are set: the list is unchanged
 - [ ] Both empty (no env var, no addresses): notification is skipped with the
       existing warning log, and the booking still succeeds
+
+## Implementation handoff
+
+Settings recipients replace the bootstrap env list, at least one is required, and the masked bootstrap notice is returned only to authenticated Settings. Weekly-hours saves write only weeklyHours, so they cannot overwrite a newer recipient list. Unit tests use mocked delivery to verify recipients and missing configuration. Real delivery to client inboxes remains a rollout check.
+
+Verified locally: 44 unit tests and 12 guarded Firestore emulator tests, TypeScript, lint, formatting, and production build. No production settings, bookings, or emails were changed. Original manual checklists above remain unchecked where real provider/client testing has not been performed.

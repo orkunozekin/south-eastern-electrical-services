@@ -91,28 +91,30 @@ export function generateDaySlots(
 }
 
 /**
- * Available slots for a day: weekly hours + overrides − taken slot ids.
+ * Available slots for a day: weekly hours + overrides minus overlapping bookings.
  * Past slots (relative to `now`) are excluded.
  */
 export function getAvailableSlots(options: {
   date: string;
   settings: BookingSettings;
   override?: AvailabilityOverride | null;
-  takenSlotIds: Iterable<string>;
+  bookedRanges: Iterable<{ startsAt: Date; endsAt: Date }>;
   now?: Date;
 }): Slot[] {
   const {
     date,
     settings,
     override = null,
-    takenSlotIds,
+    bookedRanges,
     now = new Date(),
   } = options;
-  const taken = new Set(takenSlotIds);
+  const booked = [...bookedRanges];
+  if (!isDateWithinBookingWindow(date, settings, now)) return [];
+  const earliest = addMinutes(now, settings.minNoticeMinutes);
 
   return generateDaySlots(date, settings, override).filter((slot) => {
-    if (taken.has(slot.slotId)) return false;
-    if (slot.startsAt <= now) return false;
+    if (booked.some((booking) => rangesOverlap(slot, booking))) return false;
+    if (slot.startsAt <= earliest) return false;
     return true;
   });
 }
@@ -123,17 +125,17 @@ export function getAvailableSlots(options: {
  */
 export function getBookableDateStrings(
   settings: BookingSettings,
-  daysAhead = 14,
+  daysAhead = settings.bookingWindowDays,
   now = new Date(),
 ): string[] {
   const dates: string[] = [];
   const today = formatInTimeZone(now, settings.timezone, "yyyy-MM-dd");
-  const startNoon = fromZonedTime(`${today}T12:00:00`, settings.timezone);
+  const startNoon = new Date(`${today}T12:00:00Z`);
 
   for (let offset = 0; offset < daysAhead; offset += 1) {
     const probe = addDays(startNoon, offset);
-    const date = formatInTimeZone(probe, settings.timezone, "yyyy-MM-dd");
-    const day = getDay(toZonedTime(probe, settings.timezone));
+    const date = probe.toISOString().slice(0, 10);
+    const day = probe.getUTCDay();
     if (!isDayOfWeek(day)) continue;
     const hours = settings.weeklyHours[day];
     if (hours && hours.length > 0) {
@@ -142,4 +144,84 @@ export function getBookableDateStrings(
   }
 
   return dates;
+}
+
+export const MAX_SLOT_MINUTES = 120;
+
+export function rangesOverlap(
+  a: { startsAt: Date; endsAt: Date },
+  b: { startsAt: Date; endsAt: Date },
+): boolean {
+  return a.startsAt < b.endsAt && b.startsAt < a.endsAt;
+}
+
+export function bookingWindowEnd(
+  settings: BookingSettings,
+  now = new Date(),
+): string {
+  const today = formatInTimeZone(now, settings.timezone, "yyyy-MM-dd");
+  return addDays(new Date(`${today}T12:00:00Z`), settings.bookingWindowDays - 1)
+    .toISOString()
+    .slice(0, 10);
+}
+
+export function isDateWithinBookingWindow(
+  date: string,
+  settings: BookingSettings,
+  now = new Date(),
+): boolean {
+  return (
+    date >= formatInTimeZone(now, settings.timezone, "yyyy-MM-dd") &&
+    date <= bookingWindowEnd(settings, now)
+  );
+}
+
+export function isBookingWithinAvailability(
+  booking: { startsAt: Date; endsAt: Date },
+  settings: BookingSettings,
+  override: AvailabilityOverride | null,
+): boolean {
+  const date = formatInTimeZone(
+    booking.startsAt,
+    settings.timezone,
+    "yyyy-MM-dd",
+  );
+  // Merge adjacent open slots so an existing long booking remains valid when
+  // the new grid uses shorter slots. Gaps and blocked slots remain unavailable.
+  const slots = generateDaySlots(date, settings, override).sort(
+    (a, b) => +a.startsAt - +b.startsAt,
+  );
+  let coveredUntil = booking.startsAt;
+  for (const slot of slots) {
+    if (slot.startsAt > coveredUntil) break;
+    if (slot.endsAt > coveredUntil) coveredUntil = slot.endsAt;
+    if (coveredUntil >= booking.endsAt) return true;
+  }
+  return false;
+}
+
+/** UTC day locks also serialize overlaps across a business timezone change. */
+export function bookingLockDates(startsAt: Date, endsAt: Date): string[] {
+  return [
+    ...new Set([
+      startsAt.toISOString().slice(0, 10),
+      new Date(+endsAt - 1).toISOString().slice(0, 10),
+    ]),
+  ].sort();
+}
+
+/** Calendar weeks include closed days so navigation covers the full window. */
+export function bookingCalendarWeeks(
+  settings: Pick<BookingSettings, "timezone" | "bookingWindowDays">,
+  now = new Date(),
+): string[][] {
+  const today = formatInTimeZone(now, settings.timezone, "yyyy-MM-dd");
+  const start = new Date(`${today}T12:00:00Z`);
+  const weeks: string[][] = [];
+  for (let i = 0; i < settings.bookingWindowDays; i++) {
+    const day = addDays(start, i);
+    if (i === 0 || day.getUTCDay() === 1) weeks.push([]);
+    weeks[weeks.length - 1].push(day.toISOString().slice(0, 10));
+  }
+  return weeks;
 }

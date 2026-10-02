@@ -1,6 +1,8 @@
 export {
   BookingError,
   cancelBooking,
+  findConflictingBookings,
+  recordCancelNotice,
   createBooking,
   deleteAvailabilityOverride,
   getAvailabilityOverride,

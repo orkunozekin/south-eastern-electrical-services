@@ -238,40 +238,42 @@ notifying, so:
 
 **Phase 1: sending**
 
-- [ ] Store `customerTimezone` on new bookings
-- [ ] `buildCalendarInvite`: `method` / `sequence`
-- [ ] `createBooking` stores `inviteUid` in the booking transaction when an
+- [x] Store `customerTimezone` on new bookings
+- [x] `buildCalendarInvite`: `method` / `sequence`
+- [x] `createBooking` stores `inviteUid` in the booking transaction when an
       email is given; `sendBookingConfirmation` takes that UID instead of
       building one
-- [ ] One-off backfill of `inviteUid` for existing upcoming bookings with an
+- [ ] Run the prepared one-off backfill of `inviteUid` for existing upcoming bookings with an
       email (run before any sender-domain change)
-- [ ] `sendViaPlunk`: `replyTo` option
-- [ ] `sendCustomerCancellation` and template with the `cancel.ics`
+- [x] `sendViaPlunk`: `replyTo` option
+- [x] `sendCustomerCancellation` and template with the `cancel.ics`
       attachment
-- [ ] `SITE_URL` env var (and optionally `BUSINESS_PHONE`); update
+- [x] `SITE_URL` env var (and optionally `BUSINESS_PHONE`); update
       `.env.example`
-- [ ] Update the email field hint copy in the booking wizard
+- [x] Update the email field hint copy in the booking wizard
 
 **Phase 2: cancel flow and UI**
 
-- [ ] `cancelBooking` reports whether it actually changed status
-- [ ] `cancelBookingAction(id, options)` with notice recording
-- [ ] Admin confirmation panel, result messages, notice status in the list
-- [ ] `/book?ref=cancelled` heading variant
+- [x] `cancelBooking` reports whether it actually changed status
+- [x] `cancelBookingAction(id, options)` with notice recording
+- [x] Admin confirmation panel, result messages, notice status in the list
+- [x] `/book?ref=cancelled` heading variant
+
+The backfill script is prepared at `scripts/backfill-invite-uids.ts`; applying it to production requires owner approval and verification of the original sender.
 
 **Phase 3: script**
 
-- [ ] `--yes` guard and upcoming count
-- [ ] Optional `--notify`
+- [x] `--yes` guard and upcoming count
+- [x] Optional `--notify`
 
 **Docs**
 
-- [ ] Update `docs/admin-guide.md`: §4 cancelling (new panel; customers are
+- [x] Update `docs/admin-guide.md`: §4 cancelling (new panel; customers are
       emailed and their invite is removed), §7 "Emails customers receive",
       §8 reschedule recipe (the old invite is removed automatically when the
       old booking is cancelled with notify on), troubleshooting row for
       "email failed"
-- [ ] Update `PLAN.md`: remove "No customer email field in v1" and "Customer
+- [x] Update `PLAN.md`: remove "No customer email field in v1" and "Customer
       confirmation emails" from out-of-scope
 
 ## Testing
@@ -319,3 +321,9 @@ production project without the owner's OK.
   deploy as this feature.
 - **Low uptake:** if few customers leave an email, admins still need to call.
   The UI makes that explicit rather than implying everyone was notified.
+
+## Implementation handoff
+
+Cancellation, notices, admin UI, guarded reset scripts, and invite UID backfill tooling are implemented. Invite UID and original organizer email are saved transactionally. Repeated cancellation never resends; missing/failed notice metadata is shown explicitly. Configure SITE_URL and a verified sender before rollout. The production backfill was not run; confirm the original sender and run it before changing sender domain. Actual calendar behaviour in Gmail, Outlook, and Apple remains a preview-deployment check.
+
+Verified locally: 44 unit tests and 12 guarded Firestore emulator tests, TypeScript, lint, formatting, and production build. No production settings, bookings, or emails were changed. Original manual checklists above remain unchecked where real provider/client testing has not been performed.

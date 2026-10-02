@@ -13,15 +13,18 @@ changes while building.
 | 05  | [Minimum booking notice and adjustable booking window](./05-booking-notice-window.md)      | Feature | 01         | Small–Medium |
 | 06  | [Put the client in control of notification recipients](./06-env-notify-address.md)         | Cleanup | —          | Small        |
 
-## Suggested order
+## Current status
 
-1. **01**: it blocks weekend availability for the client today, and 05 builds on
-   it.
-2. **04**: a data-integrity bug. Fix it before the client starts adjusting slot
-   length or timezone.
-3. **02**: builds on the optional customer email and calendar invite already on
-   `main`. 03 depends on it.
-4. **03**, **05**, **06** in any order.
+Plan 01 was already implemented. Plans 02–06 are now implemented locally, with unit tests and Firestore emulator coverage. The individual plans describe final implementation choices and remaining rollout checks.
+
+Before production rollout:
+
+1. Configure `SITE_URL` and a verified Plunk sender; optionally set `BUSINESS_PHONE`.
+2. Enter the client's notification address(es) in Settings.
+3. With owner approval, preview and run the legacy invite UID backfill using the original sender address, before any sender-domain change.
+4. Verify confirmation and cancellation email/calendar behaviour on a preview Firebase project with Gmail and Outlook/Apple Calendar.
+
+Minimum notice stays at zero until the client chooses a value. No production data changes, backfill, or email tests were run during implementation.
 
 ## Admin guide
 
@@ -31,11 +34,6 @@ Merge that first. Each plan's **Docs** step lists the guide sections to update
 once the plan ships. If a plan lands before the guide is merged, make the
 same edits on the guide's branch instead.
 
-## Testing note
+## Testing
 
-The repo has no automated test setup yet. Plans 01, 04 and 05 change pure slot
-logic in `lib/booking/slots.ts`, which is easy to unit test. Adding
-[Vitest](https://vitest.dev) with a handful of `slots.ts` tests is worth doing
-as part of whichever of those lands first. Each plan also lists manual checks.
-Per `AGENTS.md`, `.env.local` points at the production Firebase project, so use
-the Firestore emulator or a preview project for anything that writes bookings.
+`npm test` runs mocked-email and pure booking regression tests. `npm run test:emulator` requires a loopback Firestore emulator and demo project ID; see the root README for commands. Integration tests cover concurrent overlapping bookings, server notice/window enforcement, invite UID persistence, and admin conflict resolutions. Production data is never used for automated verification.

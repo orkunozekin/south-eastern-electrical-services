@@ -18,6 +18,7 @@ async function sendViaPlunk(options: {
   body: string;
   idempotencyKey: string;
   attachments?: PlunkAttachment[];
+  replyTo?: string;
 }): Promise<void> {
   const response = await fetch(PLUNK_SEND_URL, {
     method: "POST",
@@ -26,12 +27,14 @@ async function sendViaPlunk(options: {
       "Content-Type": "application/json",
       "Idempotency-Key": options.idempotencyKey,
     },
+    signal: AbortSignal.timeout(15000),
     body: JSON.stringify({
       to: options.to,
       subject: options.subject,
       body: options.body,
       subscribed: false,
       from: { name: SENDER_NAME, email: options.fromEmail },
+      ...(options.replyTo ? { reply: options.replyTo } : {}),
       ...(options.attachments ? { attachments: options.attachments } : {}),
     }),
   });
@@ -46,7 +49,7 @@ async function sendViaPlunk(options: {
 
 /** Ready to hit Plunk’s API (from address still needed for real delivery). */
 export function isPlunkConfigured(): boolean {
-  return Boolean(process.env.PLUNK_API_KEY && process.env.BOOKING_NOTIFY_EMAIL);
+  return Boolean(process.env.PLUNK_API_KEY && process.env.PLUNK_FROM_EMAIL);
 }
 
 function formatPhone(phone: string): string {
@@ -63,7 +66,7 @@ function escapeHtml(value: string): string {
     .replaceAll('"', "&quot;");
 }
 
-function resolveRecipients(notifyEmails?: string[]): string[] {
+export function resolveRecipients(notifyEmails?: string[]): string[] {
   const fromSettings = (notifyEmails ?? [])
     .map((e) => e.trim())
     .filter(Boolean);
@@ -72,7 +75,7 @@ function resolveRecipients(notifyEmails?: string[]): string[] {
     .map((e) => e.trim())
     .filter(Boolean);
 
-  return [...new Set([...fromSettings, ...fromEnv])];
+  return [...new Set(fromSettings.length ? fromSettings : fromEnv)];
 }
 
 function shouldLogToConsole(): boolean {
@@ -158,7 +161,7 @@ export async function sendBookingNotification(
     if (logToConsole) return "logged";
 
     console.warn(
-      "[plunk] Skipping booking notification. Need PLUNK_API_KEY, PLUNK_FROM_EMAIL (verified domain), and BOOKING_NOTIFY_EMAIL.",
+      "[plunk] Skipping booking notification. Need PLUNK_API_KEY, PLUNK_FROM_EMAIL (verified domain), and a notification address in Settings (or the bootstrap env address).",
     );
     return "skipped";
   }
@@ -221,7 +224,7 @@ export async function sendBookingConfirmation(
     );
   }
 
-  if (!apiKey || !fromEmail) {
+  if (!apiKey || !fromEmail || !booking.inviteUid) {
     if (!logToConsole) {
       console.warn(
         "[plunk] Skipping booking confirmation. Need PLUNK_API_KEY and PLUNK_FROM_EMAIL (verified domain).",
@@ -231,13 +234,16 @@ export async function sendBookingConfirmation(
   }
 
   const invite = buildCalendarInvite({
-    uid: `booking-${booking.id}@${fromEmail.split("@")[1]}`,
+    uid: booking.inviteUid,
     startsAt: booking.startsAt,
     endsAt: booking.endsAt,
     summary: "Callback from Southeastern Electrical Services",
     description: `Southeastern Electrical Services will call you at ${phone}.`,
     location: `Phone call to ${phone}`,
-    organizer: { name: SENDER_NAME, email: fromEmail },
+    organizer: {
+      name: SENDER_NAME,
+      email: booking.inviteOrganizerEmail ?? fromEmail,
+    },
     attendee: { name: booking.name, email: booking.email },
   });
 
@@ -265,4 +271,91 @@ export async function sendBookingConfirmation(
   });
 
   return logToConsole ? "logged" : "sent";
+}
+
+/** Only masked bootstrap addresses are ever returned to the authenticated UI. */
+export function maskedBootstrapRecipients(): string[] {
+  return resolveRecipients([]).map((address) => {
+    const [local, domain] = address.split("@");
+    return `${local?.slice(0, 1) ?? ""}•••@${domain ?? ""}`;
+  });
+}
+
+export function cancellationRescheduleUrl(): string | null {
+  try {
+    const url = new URL(process.env.SITE_URL ?? "");
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      url.username ||
+      url.password
+    )
+      return null;
+    return new URL("/book?ref=cancelled", url.origin).toString();
+  } catch {
+    return null;
+  }
+}
+
+export async function sendCustomerCancellation(input: {
+  booking: Booking;
+  whenLabel: string;
+  message?: string;
+  rescheduleUrl: string;
+  businessPhone?: string;
+  replyTo?: string;
+}): Promise<"sent" | "skipped"> {
+  const { booking, whenLabel } = input;
+  if (!booking.email) return "skipped";
+  const apiKey = process.env.PLUNK_API_KEY;
+  const fromEmail = process.env.PLUNK_FROM_EMAIL?.trim();
+  const subject = `Your callback on ${whenLabel} has been cancelled`;
+  if (shouldLogToConsole()) {
+    process.stderr.write(
+      `\n========== Booking cancellation (console) ==========\nTo: ${booking.email}\nSubject: ${subject}\nMessage: ${input.message ?? ""}\nReschedule: ${input.rescheduleUrl}\nCalendar cancellation: ${Boolean(booking.inviteUid)}\n====================================================\n`,
+    );
+  }
+  if (!apiKey || !fromEmail) return "skipped";
+  const invite = booking.inviteUid
+    ? buildCalendarInvite({
+        uid: booking.inviteUid,
+        method: "CANCEL",
+        sequence: 1,
+        startsAt: booking.startsAt,
+        endsAt: booking.endsAt,
+        summary: "Callback from Southeastern Electrical Services",
+        description:
+          "This callback has been cancelled. Please choose a new time.",
+        location: `Phone call to ${formatPhone(booking.phone)}`,
+        organizer: {
+          name: SENDER_NAME,
+          email: booking.inviteOrganizerEmail ?? fromEmail,
+        },
+        attendee: { name: booking.name, email: booking.email },
+      })
+    : null;
+  await sendViaPlunk({
+    apiKey,
+    fromEmail,
+    to: booking.email,
+    subject,
+    replyTo: input.replyTo,
+    idempotencyKey: `booking-cancel-${booking.id}`,
+    body: `<h2>Your callback has been cancelled</h2><p>Sorry, ${escapeHtml(booking.name)}. We need to cancel your callback on <strong>${escapeHtml(whenLabel)}</strong>.</p>
+      ${input.message ? `<p>${escapeHtml(input.message).replaceAll("\n", "<br>")}</p>` : ""}
+      <p><a href="${escapeHtml(input.rescheduleUrl)}">Pick a new time</a></p>
+      ${input.businessPhone ? `<p>You can also call ${escapeHtml(input.businessPhone)}.</p>` : ""}
+      ${invite ? "<p>A calendar cancellation is attached. Your calendar app may ask you to accept it.</p>" : "<p>If you added this call to your calendar, please remove the old event.</p>"}`,
+    ...(invite
+      ? {
+          attachments: [
+            {
+              filename: "cancel.ics",
+              content: Buffer.from(invite, "utf8").toString("base64"),
+              contentType: "text/calendar; method=CANCEL",
+            },
+          ],
+        }
+      : {}),
+  });
+  return "sent";
 }

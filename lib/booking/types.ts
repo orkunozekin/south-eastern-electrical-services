@@ -14,6 +14,8 @@ export type BookingSettings = {
   slotDurationMinutes: number;
   weeklyHours: WeeklyHours;
   notifyEmails: string[];
+  minNoticeMinutes: number;
+  bookingWindowDays: number;
 };
 
 export type AvailabilityOverride = {
@@ -31,8 +33,15 @@ export type Booking = {
   id: string;
   name: string;
   phone: string;
-  /** Only present when the customer asked for a calendar invite. */
+  /** Optional address for confirmation and cancellation notices. */
   email?: string;
+  customerTimezone?: string;
+  inviteUid?: string;
+  inviteOrganizerEmail?: string;
+  cancelledAt?: Date;
+  cancelNotice?: "sent" | "failed" | "skipped" | null;
+  cancelNoticeAt?: Date;
+  cancelNoticeReason?: string;
   startsAt: Date;
   endsAt: Date;
   status: BookingStatus;
@@ -41,7 +50,7 @@ export type Booking = {
 };
 
 export type Slot = {
-  /** Idempotent id used as Firestore `slots/{slotId}` doc id. */
+  /** Readable local-time label; availability uses real time ranges. */
   slotId: string;
   startsAt: Date;
   endsAt: Date;
@@ -51,6 +60,7 @@ export type CreateBookingInput = {
   name: string;
   phone: string;
   email?: string;
+  customerTimezone?: string;
   /** Slot start instant (UTC Date). Must match a generated available slot. */
   startsAt: Date;
 };

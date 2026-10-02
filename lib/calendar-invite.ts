@@ -1,5 +1,7 @@
 export type CalendarInviteInput = {
   uid: string;
+  method?: "REQUEST" | "CANCEL";
+  sequence?: number;
   startsAt: Date;
   endsAt: Date;
   summary: string;
@@ -54,12 +56,13 @@ function foldLine(line: string): string {
 
 export function buildCalendarInvite(input: CalendarInviteInput): string {
   const { organizer, attendee } = input;
+  const method = input.method ?? "REQUEST";
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//Southeastern Electrical Services//Booking//EN",
     "CALSCALE:GREGORIAN",
-    "METHOD:REQUEST",
+    `METHOD:${method}`,
     "BEGIN:VEVENT",
     `UID:${input.uid}`,
     `DTSTAMP:${formatUtc(new Date())}`,
@@ -70,14 +73,18 @@ export function buildCalendarInvite(input: CalendarInviteInput): string {
     `LOCATION:${escapeText(input.location)}`,
     `ORGANIZER;CN=${escapeParam(organizer.name)}:mailto:${organizer.email}`,
     `ATTENDEE;CN=${escapeParam(attendee.name)};ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE:mailto:${attendee.email}`,
-    "STATUS:CONFIRMED",
-    "SEQUENCE:0",
+    `STATUS:${method === "CANCEL" ? "CANCELLED" : "CONFIRMED"}`,
+    `SEQUENCE:${input.sequence ?? (method === "CANCEL" ? 1 : 0)}`,
     "TRANSP:OPAQUE",
-    "BEGIN:VALARM",
-    "ACTION:DISPLAY",
-    "DESCRIPTION:Southeastern Electrical callback",
-    "TRIGGER:-PT15M",
-    "END:VALARM",
+    ...(method === "REQUEST"
+      ? [
+          "BEGIN:VALARM",
+          "ACTION:DISPLAY",
+          "DESCRIPTION:Southeastern Electrical callback",
+          "TRIGGER:-PT15M",
+          "END:VALARM",
+        ]
+      : []),
     "END:VEVENT",
     "END:VCALENDAR",
   ];

@@ -5,7 +5,8 @@ import {
   type Query,
   type QueryDocumentSnapshot,
 } from "firebase-admin/firestore";
-import { formatInTimeZone } from "date-fns-tz";
+import { addDays, subMinutes } from "date-fns";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 
 import { getAdminDb } from "@/lib/firebase/admin";
 
@@ -14,7 +15,16 @@ import {
   DEFAULT_BOOKING_SETTINGS,
   SETTINGS_BOOKING_DOC,
 } from "./defaults";
-import { getAvailableSlots, slotIdForStart } from "./slots";
+import {
+  bookingLockDates,
+  generateDaySlots,
+  getAvailableSlots,
+  isBookingWithinAvailability,
+  isDateWithinBookingWindow,
+  MAX_SLOT_MINUTES,
+  rangesOverlap,
+} from "./slots";
+import { inviteIdentity } from "./invite-identity";
 import type {
   AvailabilityOverride,
   Booking,
@@ -78,17 +88,30 @@ function parseWeeklyHours(value: unknown): WeeklyHours | undefined {
   return result;
 }
 
-function mergeSettings(data: DocumentData | undefined): BookingSettings {
+export function mergeSettings(data: DocumentData | undefined): BookingSettings {
   if (!data) return { ...DEFAULT_BOOKING_SETTINGS };
 
   return {
+    minNoticeMinutes:
+      Number.isInteger(data.minNoticeMinutes) &&
+      data.minNoticeMinutes >= 0 &&
+      data.minNoticeMinutes <= 10080
+        ? data.minNoticeMinutes
+        : DEFAULT_BOOKING_SETTINGS.minNoticeMinutes,
+    bookingWindowDays:
+      Number.isInteger(data.bookingWindowDays) &&
+      data.bookingWindowDays >= 1 &&
+      data.bookingWindowDays <= 90
+        ? data.bookingWindowDays
+        : DEFAULT_BOOKING_SETTINGS.bookingWindowDays,
     timezone:
       typeof data.timezone === "string"
         ? data.timezone
         : DEFAULT_BOOKING_SETTINGS.timezone,
     slotDurationMinutes:
-      typeof data.slotDurationMinutes === "number" &&
-        data.slotDurationMinutes > 0
+      Number.isInteger(data.slotDurationMinutes) &&
+      data.slotDurationMinutes >= 15 &&
+      data.slotDurationMinutes <= MAX_SLOT_MINUTES
         ? data.slotDurationMinutes
         : DEFAULT_BOOKING_SETTINGS.slotDurationMinutes,
     weeklyHours:
@@ -113,6 +136,25 @@ function bookingFromDoc(doc: QueryDocumentSnapshot): Booking {
     phone: String(data.phone),
     ...(typeof data.email === "string" && data.email
       ? { email: data.email }
+      : {}),
+    ...(typeof data.customerTimezone === "string"
+      ? { customerTimezone: data.customerTimezone }
+      : {}),
+    ...(typeof data.inviteUid === "string"
+      ? { inviteUid: data.inviteUid }
+      : {}),
+    ...(typeof data.inviteOrganizerEmail === "string"
+      ? { inviteOrganizerEmail: data.inviteOrganizerEmail }
+      : {}),
+    ...(data.cancelledAt ? { cancelledAt: toDate(data.cancelledAt) } : {}),
+    cancelNotice: ["sent", "failed", "skipped"].includes(data.cancelNotice)
+      ? data.cancelNotice
+      : null,
+    ...(data.cancelNoticeAt
+      ? { cancelNoticeAt: toDate(data.cancelNoticeAt) }
+      : {}),
+    ...(typeof data.cancelNoticeReason === "string"
+      ? { cancelNoticeReason: data.cancelNoticeReason }
       : {}),
     startsAt: toDate(data.startsAt),
     endsAt: toDate(data.endsAt),
@@ -146,16 +188,25 @@ export async function getBookingSettings(): Promise<BookingSettings> {
 
 export async function saveBookingSettings(
   settings: BookingSettings,
+  fields?: (keyof BookingSettings)[],
 ): Promise<void> {
   await getAdminDb()
     .collection(COLLECTIONS.settings)
     .doc(SETTINGS_BOOKING_DOC)
     .set(
       {
-        timezone: settings.timezone,
-        slotDurationMinutes: settings.slotDurationMinutes,
-        weeklyHours: settings.weeklyHours,
-        notifyEmails: settings.notifyEmails,
+        ...Object.fromEntries(
+          Object.entries({
+            minNoticeMinutes: settings.minNoticeMinutes,
+            bookingWindowDays: settings.bookingWindowDays,
+            timezone: settings.timezone,
+            slotDurationMinutes: settings.slotDurationMinutes,
+            weeklyHours: settings.weeklyHours,
+            notifyEmails: settings.notifyEmails,
+          }).filter(
+            ([key]) => !fields || fields.includes(key as keyof BookingSettings),
+          ),
+        ),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true },
@@ -236,40 +287,72 @@ export async function listAvailabilityOverrides(range?: {
     .filter((item): item is AvailabilityOverride => item !== null);
 }
 
-async function getTakenSlotIdsForDate(date: string): Promise<Set<string>> {
-  const prefix = `${date}_`;
-  const snap = await getAdminDb()
-    .collection(COLLECTIONS.slots)
-    .where("__name__", ">=", prefix)
-    .where("__name__", "<", `${prefix}\uf8ff`)
-    .get();
-
-  const taken = new Set<string>();
-  for (const doc of snap.docs) {
-    if (doc.data().booked) {
-      taken.add(doc.id);
-    }
-  }
-  return taken;
+export async function getBookedRangesForDate(
+  date: string,
+  timezone: string,
+): Promise<Booking[]> {
+  const dayStart = fromZonedTime(`${date}T00:00:00`, timezone);
+  const nextDate = addDays(new Date(`${date}T12:00:00Z`), 1)
+    .toISOString()
+    .slice(0, 10);
+  const dayEnd = fromZonedTime(`${nextDate}T00:00:00`, timezone);
+  return (
+    await listBookings({
+      from: subMinutes(dayStart, MAX_SLOT_MINUTES),
+      to: dayEnd,
+      status: "confirmed",
+    })
+  ).filter((booking) => booking.endsAt > dayStart);
 }
 
 export async function listAvailableSlots(date: string): Promise<Slot[]> {
-  if (!isValidDateString(date)) {
+  if (!isValidDateString(date))
     throw new BookingError(`Invalid date: ${date}`, "INVALID_DATE");
-  }
-
-  const [settings, override, takenSlotIds] = await Promise.all([
-    getBookingSettings(),
+  const settings = await getBookingSettings();
+  if (!isDateWithinBookingWindow(date, settings)) return [];
+  const [override, bookedRanges] = await Promise.all([
     getAvailabilityOverride(date),
-    getTakenSlotIdsForDate(date),
+    getBookedRangesForDate(date, settings.timezone),
   ]);
+  return getAvailableSlots({ date, settings, override, bookedRanges });
+}
 
-  return getAvailableSlots({
-    date,
-    settings,
-    override,
-    takenSlotIds,
+export async function findConflictingBookings(input: {
+  settings: BookingSettings;
+  overrides: Map<string, AvailabilityOverride | null>;
+  from?: Date;
+  to?: Date;
+}): Promise<Booking[]> {
+  const bookings = await listBookings({
+    from: input.from ?? new Date(),
+    to: input.to,
+    status: "confirmed",
   });
+  const overrides = new Map(input.overrides);
+  const dates = [
+    ...new Set(
+      bookings.map((b) =>
+        formatInTimeZone(b.startsAt, input.settings.timezone, "yyyy-MM-dd"),
+      ),
+    ),
+  ];
+  await Promise.all(
+    dates
+      .filter((date) => !overrides.has(date))
+      .map(async (date) => {
+        overrides.set(date, await getAvailabilityOverride(date));
+      }),
+  );
+  return bookings.filter(
+    (b) =>
+      !isBookingWithinAvailability(
+        b,
+        input.settings,
+        overrides.get(
+          formatInTimeZone(b.startsAt, input.settings.timezone, "yyyy-MM-dd"),
+        ) ?? null,
+      ),
+  );
 }
 
 export async function listBookings(options?: {
@@ -307,111 +390,141 @@ export async function getBooking(id: string): Promise<Booking | null> {
   return bookingFromDoc(snap as QueryDocumentSnapshot);
 }
 
-/**
- * Creates a confirmed booking in a transaction.
- * Locks the slot doc so concurrent requests cannot double-book.
- */
+/** Settings, overrides, notice and overlaps are rechecked inside the transaction. */
 export async function createBooking(
   input: CreateBookingInput,
 ): Promise<Booking> {
   const fields = validateBookingFields(input.name, input.phone, input.email);
-  if (!fields.ok) {
-    throw new BookingError(fields.error, "VALIDATION");
-  }
-
-  if (
-    !(input.startsAt instanceof Date) ||
-    Number.isNaN(input.startsAt.getTime())
-  ) {
+  if (!fields.ok) throw new BookingError(fields.error, "VALIDATION");
+  if (!(input.startsAt instanceof Date) || Number.isNaN(+input.startsAt)) {
     throw new BookingError("Invalid appointment time.", "VALIDATION");
   }
-
-  const settings = await getBookingSettings();
-  const date = formatInTimeZone(
-    input.startsAt,
-    settings.timezone,
-    "yyyy-MM-dd",
-  );
-  const slotId = slotIdForStart(input.startsAt, settings.timezone);
-
-  const available = await listAvailableSlots(date);
-  const match = available.find((slot) => slot.slotId === slotId);
-  if (!match) {
-    throw new BookingError(
-      "That time slot is no longer available.",
-      "SLOT_UNAVAILABLE",
-    );
-  }
-
   const db = getAdminDb();
   const bookingRef = db.collection(COLLECTIONS.bookings).doc();
-  const slotRef = db.collection(COLLECTIONS.slots).doc(slotId);
-
-  await db.runTransaction(async (tx) => {
-    const slotSnap = await tx.get(slotRef);
-    if (slotSnap.exists && slotSnap.data()?.booked) {
+  return db.runTransaction(async (tx) => {
+    const settingsSnap = await tx.get(
+      db.collection(COLLECTIONS.settings).doc(SETTINGS_BOOKING_DOC),
+    );
+    const settings = mergeSettings(settingsSnap.data());
+    const date = formatInTimeZone(
+      input.startsAt,
+      settings.timezone,
+      "yyyy-MM-dd",
+    );
+    const overrideSnap = await tx.get(
+      db.collection(COLLECTIONS.availabilityOverrides).doc(date),
+    );
+    const override = overrideFromData(date, overrideSnap.data());
+    const match = generateDaySlots(date, settings, override).find(
+      (slot) => +slot.startsAt === +input.startsAt,
+    );
+    if (!match)
+      throw new BookingError(
+        "That time slot is no longer available.",
+        "SLOT_UNAVAILABLE",
+      );
+    const lockRefs = bookingLockDates(match.startsAt, match.endsAt).map((day) =>
+      db.collection(COLLECTIONS.bookingDays).doc(day),
+    );
+    // Explicit shared reads AND writes force concurrent overlapping requests to retry.
+    for (const ref of lockRefs) await tx.get(ref);
+    const candidates = await tx.get(
+      db
+        .collection(COLLECTIONS.bookings)
+        .where(
+          "startsAt",
+          ">=",
+          Timestamp.fromDate(subMinutes(match.startsAt, MAX_SLOT_MINUTES)),
+        )
+        .where("startsAt", "<", Timestamp.fromDate(match.endsAt)),
+    );
+    const bookedRanges = candidates.docs
+      .map(bookingFromDoc)
+      .filter((b) => b.status === "confirmed" && rangesOverlap(b, match));
+    const available = getAvailableSlots({
+      date,
+      settings,
+      override,
+      bookedRanges,
+    });
+    if (!available.some((slot) => +slot.startsAt === +match.startsAt)) {
       throw new BookingError(
         "That time slot is no longer available.",
         "SLOT_UNAVAILABLE",
       );
     }
-
     const now = Timestamp.now();
-    tx.set(slotRef, {
-      booked: true,
-      bookingId: bookingRef.id,
-      startsAt: Timestamp.fromDate(match.startsAt),
-      endsAt: Timestamp.fromDate(match.endsAt),
-    });
+    const identity = fields.value.email ? inviteIdentity(bookingRef.id) : {};
+    const booking: Booking = {
+      id: bookingRef.id,
+      ...fields.value,
+      ...identity,
+      ...(input.customerTimezone
+        ? { customerTimezone: input.customerTimezone }
+        : {}),
+      startsAt: match.startsAt,
+      endsAt: match.endsAt,
+      slotId: match.slotId,
+      status: "confirmed",
+      createdAt: now.toDate(),
+    };
+    const { id: _id, ...data } = booking;
+    void _id;
     tx.set(bookingRef, {
-      name: fields.value.name,
-      phone: fields.value.phone,
-      ...(fields.value.email ? { email: fields.value.email } : {}),
+      ...data,
       startsAt: Timestamp.fromDate(match.startsAt),
       endsAt: Timestamp.fromDate(match.endsAt),
-      status: "confirmed" satisfies BookingStatus,
       createdAt: now,
-      slotId,
     });
+    for (const ref of lockRefs)
+      tx.set(
+        ref,
+        { lastBookingAt: now, count: FieldValue.increment(1) },
+        { merge: true },
+      );
+    return booking;
   });
-
-  const created = await getBooking(bookingRef.id);
-  if (!created) {
-    throw new Error("Booking write succeeded but document was not found.");
-  }
-  return created;
 }
 
-export async function cancelBooking(id: string): Promise<Booking> {
-  const db = getAdminDb();
-  const bookingRef = db.collection(COLLECTIONS.bookings).doc(id);
-
-  await db.runTransaction(async (tx) => {
-    const snap = await tx.get(bookingRef);
-    if (!snap.exists) {
-      throw new BookingError("Booking not found.", "NOT_FOUND");
-    }
-
-    const data = snap.data()!;
-    if (data.status === "cancelled") {
-      return;
-    }
-
-    const slotId = String(data.slotId);
-    tx.update(bookingRef, {
-      status: "cancelled" satisfies BookingStatus,
-      cancelledAt: FieldValue.serverTimestamp(),
+export async function cancelBooking(
+  id: string,
+): Promise<{ booking: Booking; changed: boolean }> {
+  const ref = getAdminDb().collection(COLLECTIONS.bookings).doc(id);
+  return getAdminDb().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new BookingError("Booking not found.", "NOT_FOUND");
+    const booking = bookingFromDoc(snap as QueryDocumentSnapshot);
+    if (booking.status === "cancelled") return { booking, changed: false };
+    const cancelledAt = Timestamp.now();
+    tx.update(ref, {
+      status: "cancelled",
+      cancelledAt,
+      cancelNotice: null,
+      cancelNoticeReason:
+        "Notification result pending. Check before contacting the customer.",
     });
-    tx.set(
-      db.collection(COLLECTIONS.slots).doc(slotId),
-      { booked: false, bookingId: null },
-      { merge: true },
-    );
+    return {
+      booking: {
+        ...booking,
+        status: "cancelled",
+        cancelledAt: cancelledAt.toDate(),
+      },
+      changed: true,
+    };
   });
+}
 
-  const updated = await getBooking(id);
-  if (!updated) {
-    throw new BookingError("Booking not found.", "NOT_FOUND");
-  }
-  return updated;
+export async function recordCancelNotice(
+  id: string,
+  notice: "sent" | "failed" | "skipped",
+  reason?: string,
+): Promise<void> {
+  await getAdminDb()
+    .collection(COLLECTIONS.bookings)
+    .doc(id)
+    .update({
+      cancelNotice: notice,
+      cancelNoticeAt: FieldValue.serverTimestamp(),
+      cancelNoticeReason: reason ?? null,
+    });
 }

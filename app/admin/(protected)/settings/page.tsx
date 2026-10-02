@@ -39,7 +39,11 @@ export default async function AdminSettingsPage() {
       </AdminHelpLink>
       <div className="mt-8">
         {result.ok ? (
-          <AdminSettingsForm settings={result.settings} />
+          <AdminSettingsForm
+            settings={result.settings}
+            bootstrapRecipients={result.bootstrapRecipients}
+            upcomingBookings={result.upcomingBookings}
+          />
         ) : (
           <p className="text-red-700">{result.error}</p>
         )}

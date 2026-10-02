@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { cancelBookingAction, type AdminBookingDto } from "@/app/actions/admin";
+import { cancellationNoticeLabel } from "@/lib/booking/notice-label";
 import { formatWithShortZone } from "@/lib/timezone";
 import { useViewerTimezone } from "@/lib/use-viewer-timezone";
 
@@ -43,6 +44,10 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
   const router = useRouter();
   const viewerTimezone = useViewerTimezone("America/New_York");
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [notifyCustomer, setNotifyCustomer] = useState(true);
+  const [cancelMessage, setCancelMessage] = useState("");
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
@@ -61,16 +66,20 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
   );
 
   function handleCancel(id: string) {
-    if (!confirm("Cancel this callback booking?")) return;
     setError(null);
     setPendingId(id);
     startTransition(async () => {
-      const result = await cancelBookingAction(id);
+      const result = await cancelBookingAction(id, {
+        notifyCustomer,
+        message: cancelMessage,
+      });
       setPendingId(null);
       if (!result.ok) {
         setError(result.error);
         return;
       }
+      setConfirmId(null);
+      setResultMessage(`Cancelled. ${cancellationNoticeLabel(result)}`);
       router.refresh();
     });
   }
@@ -126,6 +135,11 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
         </div>
       )}
 
+      {resultMessage && (
+        <p role="status" className="text-navy text-sm">
+          {resultMessage}
+        </p>
+      )}
       {error && <p className="text-sm text-red-700">{error}</p>}
 
       <section>
@@ -147,6 +161,11 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
               >
                 <div>
                   <p className="text-navy font-semibold">{booking.name}</p>
+                  {booking.outsideHours && (
+                    <p className="text-sm font-semibold text-red-700">
+                      Outside your hours
+                    </p>
+                  )}
                   <p className="text-slate text-sm">
                     {bookingWhenLabel(booking.startsAt, viewerTimezone)}
                   </p>
@@ -157,14 +176,72 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleCancel(booking.id)}
-                  disabled={pending && pendingId === booking.id}
+                  onClick={() => {
+                    setConfirmId(booking.id);
+                    setNotifyCustomer(!!booking.email);
+                    setCancelMessage("");
+                    setResultMessage(null);
+                  }}
+                  disabled={pending || confirmId === booking.id}
                   className="border-navy/20 text-navy hover:border-amber hover:bg-amber/10 self-start border px-3 py-2 text-sm font-medium transition disabled:opacity-60"
                 >
                   {pending && pendingId === booking.id
                     ? "Cancelling…"
                     : "Cancel"}
                 </button>
+                {confirmId === booking.id && (
+                  <div className="border-amber bg-amber/10 w-full space-y-3 border-l-4 p-4 sm:max-w-md">
+                    <p className="text-navy text-sm font-semibold">
+                      Cancel {booking.name}’s callback on{" "}
+                      {bookingWhenLabel(booking.startsAt, viewerTimezone)}?
+                    </p>
+                    <label className="text-slate flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={notifyCustomer}
+                        disabled={pending || !booking.email}
+                        onChange={(e) => setNotifyCustomer(e.target.checked)}
+                      />
+                      Email the customer asking them to reschedule
+                    </label>
+                    {!booking.email && (
+                      <p className="text-slate text-sm">
+                        No email on file. Please call {booking.phoneDisplay}.
+                      </p>
+                    )}
+                    {notifyCustomer && (
+                      <label className="text-slate block text-sm">
+                        Optional message
+                        <textarea
+                          rows={3}
+                          maxLength={1000}
+                          disabled={pending}
+                          value={cancelMessage}
+                          onChange={(e) => setCancelMessage(e.target.value)}
+                          className="border-navy/20 mt-2 w-full border bg-white p-2"
+                        />
+                      </label>
+                    )}
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => handleCancel(booking.id)}
+                        className="bg-navy px-3 py-2 text-sm text-white"
+                      >
+                        {pending ? "Cancelling…" : "Cancel booking"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => setConfirmId(null)}
+                        className="text-navy border px-3 py-2 text-sm"
+                      >
+                        Keep booking
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -195,6 +272,19 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
                   {bookingWhenLabel(booking.startsAt, viewerTimezone)}
                 </p>
                 <p className="text-slate text-sm">{booking.phoneDisplay}</p>
+                {booking.status === "cancelled" && (
+                  <p className="text-slate mt-1 text-sm">
+                    {booking.cancelNotice === "sent"
+                      ? "Customer emailed"
+                      : booking.cancelNotice === "failed"
+                        ? "Email failed; please call the customer"
+                        : booking.cancelNotice === "skipped"
+                          ? "Not emailed"
+                          : "Notification result unavailable; check before contacting the customer"}
+                    {booking.cancelNoticeReason &&
+                      ` · ${booking.cancelNoticeReason}`}
+                  </p>
+                )}
                 {booking.email && (
                   <p className="text-slate text-sm">{booking.email}</p>
                 )}

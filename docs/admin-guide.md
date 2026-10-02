@@ -171,27 +171,17 @@ time. The label always tells you which timezone you're looking at.
 
 ### Cancelling a booking
 
-1. Find the booking under **Upcoming**.
-2. Click **Cancel**.
-3. A pop-up asks **"Cancel this callback booking?"** Click **OK** to confirm,
-   or **Cancel** to go back without changing anything.
+1. Find the booking under **Upcoming** and click **Cancel**.
+2. Review the inline confirmation panel. **Email the customer asking them to reschedule** is checked when an email is on file. Add an optional message (up to 1000 characters), or untick the checkbox if you will contact them yourself.
+3. Click **Cancel booking**, or **Keep booking** to go back.
 
-What happens:
+The booking moves to **Recent / cancelled**. Its time becomes available again if it is still within your availability, notice period, and booking window.
 
-- The booking moves to **Recent / cancelled** and is marked `cancelled`.
-- That time slot **immediately becomes available again** on the public
-  calendar, so another customer can book it.
+For future bookings, the email includes the original time in the customer's timezone, your message, a **Pick a new time** link, and a calendar cancellation using the original invite identifier. Their calendar app may ask them to accept the cancellation. For older bookings without an invite identifier, the email asks them to remove the old event themselves.
 
-Important:
+Always read the result. **Email failed**, **Not emailed**, or **No email on file** means you should call the customer at the number shown. An email failure never reverses the cancellation. Recent / cancelled also shows the saved notification status. If the notification result is pending or unavailable, check before assuming the customer was emailed.
 
-- **The customer is not notified.** The website doesn't send a cancellation
-  email or text. If you cancel, please call the customer to let them know. If
-  they left an email address, they received a calendar invite when they booked,
-  and it **stays in their calendar** after you cancel. Ask them to delete it
-  when you call.
-- **Cancelling can't be undone.** If you cancel by mistake, re-book the
-  customer yourself (see
-  [Booking on behalf of a customer](#booking-on-behalf-of-a-customer)).
+**Cancelling can't be undone.** Re-book the customer if you cancel by mistake. Customers cannot cancel themselves, and the website does not send SMS.
 
 ### Seeing new bookings
 
@@ -246,9 +236,7 @@ Limits:
 - **One block of time per day.** You can't enter a split day like
   "9–12 and 1–5" here. To keep a lunch hour free, block those slots on
   specific dates using a [date override](#52-date-overrides).
-- **Changes don't affect existing bookings.** If you shorten your hours,
-  customers who already booked a time that's now outside your hours keep their
-  booking. Check the Bookings page and cancel or call them if needed.
+- **Review affected bookings before saving.** Shortening hours or disabling a weekday shows a warning listing affected callbacks. Choose **Save anyway** to keep them, or **Go back**. Use **View bookings** to cancel individual callbacks and notify customers. Upcoming callbacks outside saved availability have an **Outside your hours** badge.
 
 ### 5.2 Date overrides
 
@@ -282,8 +270,7 @@ Blocked times follow a few rules:
   `9:00` or `2pm` won't be accepted.
 - **Only type start times that are actually on your schedule.** With 30-minute
   slots starting at 9:00, the valid times are `09:00`, `09:30`, `10:00`, and so
-  on. If you type `09:15`, nothing gets blocked, because no slot starts at
-  9:15.
+  on. If you type `09:15`, saving is rejected and the message lists valid start times.
 - To block a full hour with 30-minute slots, block **both** halves, e.g.
   `12:00 12:30`.
 
@@ -304,9 +291,7 @@ Example: to keep lunch free on 30-minute slots, type `12:00, 12:30`.
 - **One override per date.** Saving an override for a date that already has
   one **replaces** it. If you want to block more times on that day, enter the
   full list, including the times you blocked before.
-- **Overrides don't cancel existing bookings.** If a customer has already
-  booked a time on a day you then close or block, their booking stays. Check
-  the Bookings page, cancel it, and call them.
+- **Review affected bookings before saving.** If closing a date or blocking slots affects existing callbacks, a panel lists them. Choose **Cancel them & email customers**, **Cancel them without emailing**, or **Keep the bookings**. You can add an optional message to the emails. The saved summary shows each cancellation and notification result; call anyone who was not emailed. Bookings arriving before the change is saved are checked again on the server.
 - **Overrides can only close or block time**. They can't add extra hours. To
   open on a normally closed day, contact your developer.
 - Saving an override with "Closed all day" unticked and no blocked times has no
@@ -352,35 +337,15 @@ You'll normally set this once and leave it. Changing it shifts **all your
 hours** to the new timezone. For example, 9:00 AM Eastern becomes 9:00 AM
 Central, which is an hour later in real time.
 
-**Don't change the timezone while you have upcoming bookings.** Existing
-bookings keep their real time, but the website can lose track of which new
-slots they occupy. That means another customer could book the same moment as
-an existing booking. For example, a 10:00 AM Eastern booking is 9:00 AM
-Central, and after switching to Central the 9:00 AM slot could be offered to
-someone else. If you need to change it:
-
-1. Check the **Upcoming** list on the Bookings page first. Ideally, change the
-   timezone only when it's empty.
-2. If it isn't empty, contact your developer before changing it.
+Changing timezone keeps existing bookings at their original real time. The website prevents new appointments overlapping them. Before saving, a preview lists callbacks outside the proposed availability. Choose **Save anyway** to keep them, or **Go back**. Review affected callbacks on **Bookings**, where you can cancel and email each customer.
 
 ### 6.2 Slot duration (minutes)
 
-How long each callback slot is. It must be between **15 and 120 minutes**, in
-steps of 15 (15, 30, 45, 60, …). The default is 30.
+How long each callback slot is. It must be a whole number between **15 and 120 minutes**. The default is 30.
 
-A shorter duration offers more, shorter callback times per day. A longer
-duration offers fewer, longer callback times.
+A shorter duration offers more, shorter times per day. A longer duration offers fewer, longer times. Existing bookings keep their original length, and any time overlapping them remains unavailable to new customers. When upcoming bookings exist, the form reminds you that they keep their length. A preview warns about callbacks outside the proposed availability before saving.
 
-**Be careful when changing this if you have upcoming bookings.** Existing
-bookings keep their original length, but new slots are laid out on the new
-schedule, which could let a new booking overlap an existing one. For example,
-if you switch from 30 to 60 minutes, a customer already booked at 9:30 won't
-stop someone else booking 9:00–10:00. The safest approach is to change it when
-the Upcoming list is empty, or check the Bookings page afterwards for overlaps.
-
-Also, any **blocked slots** you set up on date overrides need to match the new
-start times. Review your [current overrides](#53-current-overrides) after
-changing this.
+Review **blocked slots** in date overrides after changing the grid. Blocked start times must match a real slot when saving an override.
 
 ### 6.3 Notify emails
 
@@ -388,8 +353,22 @@ The email address(es) that receive a message whenever a customer books.
 
 - Put **one email address per line** (commas also work).
 - You can list as many addresses as you like, e.g. the owner and the office.
+- **At least one address is required** when saving Settings.
+- Before the first address is saved, the form shows a masked bootstrap address if one is configured. Once you save an address, only your Settings list receives business notifications; no hidden copy is added.
 - If an address is mistyped (for example, missing the `@`), you'll get an
-  error saying which one is invalid, and nothing is saved until it's fixed.
+  error asking for valid addresses, and nothing is saved until it's fixed.
+
+### 6.4 Minimum booking notice
+
+Choose **No minimum**, **30 minutes**, **1 hour**, **2 hours**, **4 hours**, or **Next day / 24 hours**. Only times more than that far ahead are offered and accepted. Existing bookings are kept. The initial default is **No minimum**, preserving the original behaviour until you choose.
+
+### 6.5 How far ahead customers can book
+
+Use **1 week**, **2 weeks**, **1 month (30 days)**, **2 months (60 days)**, or **3 months (90 days)**, or enter a custom value from **1 to 90 days**. The help text shows the last included date in the business timezone.
+
+The count includes today and closed days: 14 means today plus the next 13 calendar days. Extending the window makes new dates available without a redeploy. Add holiday and vacation overrides across the entire window. Shrinking it stops new bookings beyond the last date; existing bookings there are kept.
+
+For windows over 21 days, the public calendar shows one week at a time with **Previous week** and **Next week** controls.
 
 ---
 
@@ -416,15 +395,14 @@ but no email is sent and you won't see a warning.** So:
 
 ### Check emails are arriving (do this when you first start)
 
-1. Go to the public **Book a callback** page and book a slot using your own
-   name, phone number, and email address.
-2. Confirm that:
+1. In **Settings**, enter your own **Notify emails** address(es) and save. This switches business notifications to the addresses you control.
+2. Go to the public **Book a callback** page and book a slot using your own name, phone number, and email address.
+3. Confirm that:
    - the booking appears on the **Bookings** page
    - every address on your Notify emails list receives the notification
      (check spam or junk too)
    - your own email address receives the confirmation and calendar invite
-3. **Cancel** the test booking from the Bookings page, and delete the test
-   invite from your calendar.
+4. **Cancel** the test booking with **Email the customer** checked. Confirm you receive a cancellation email, the **Pick a new time** link works, and the calendar cancellation removes or marks the event cancelled (accept it if your calendar asks).
 
 If any email doesn't arrive after 10 minutes (including spam), contact your
 developer.
@@ -433,10 +411,8 @@ developer.
 
 - **Check your spam or junk folder** the first time, and mark the email as
   "Not spam" so future ones land in your inbox.
-- **Emails are sent when someone books, but not when a booking is cancelled.**
-- Your developer may also have set up an address behind the scenes that
-  always gets a copy. Removing addresses in Settings won't stop that one; ask
-  your developer if you want it changed.
+- Customers can be emailed when future bookings are cancelled. Business notification recipients are controlled entirely by Settings after your first address is saved.
+- For customers without email, call them yourself. Cancellation results make this clear.
 
 ### Emails customers receive
 
@@ -452,9 +428,7 @@ email:
 After booking, the confirmation screen tells the customer whether the invite
 was sent. If it couldn't be sent, the booking is still confirmed.
 
-Customers **don't** get an email when you cancel, and the calendar invite
-isn't removed from their calendar automatically. Call them, as described in
-[Cancelling a booking](#cancelling-a-booking).
+When you cancel a future callback with notification enabled, the customer receives the original time, your optional message, a reschedule link, and a calendar cancellation when the original invite identifier is available. Replies go to the first Notify emails address. An optional business phone appears if configured by your developer. If sending fails, the booking is still cancelled and you should call the customer.
 
 ---
 
@@ -464,8 +438,7 @@ isn't removed from their calendar automatically. Call them, as described in
 
 1. **Availability** → **Date override**.
 2. Pick the date, leave **Closed all day** ticked, and click **Save override**.
-3. Go to **Bookings** and check whether anyone has already booked that day. If
-   so, cancel their booking and call them to rearrange.
+3. If a conflict panel appears, choose whether to cancel and email the affected customers, cancel without emailing, or keep their callbacks. Read the result and call anyone who wasn't emailed.
 
 ### Block off an hour for an appointment
 
@@ -480,14 +453,11 @@ isn't removed from their calendar automatically. Call them, as described in
 1. **Availability** → **Weekly hours**.
 2. Adjust the times, or tick/untick days.
 3. Click **Save weekly hours**.
-4. Check **Bookings** for anyone booked outside your new hours.
+4. Review any conflict warning before saving. If you choose **Save anyway**, use **Bookings** to contact or cancel the affected callbacks.
 
 ### Stop taking bookings for a while (e.g. a vacation)
 
-Add a **Closed all day** override for each date you'll be away. Customers can
-only book about two weeks ahead, so you only need to close dates within the
-next two weeks for it to take effect straight away. Add further dates before
-they come within that two-week window.
+Add a **Closed all day** override for each date you'll be away. Check **Settings → How far ahead customers can book** and cover the full booking window, especially after extending it. Use each override's conflict panel to cancel and notify affected callbacks, and call customers who cannot be emailed.
 
 ### Booking on behalf of a customer
 
@@ -515,8 +485,7 @@ Doing it in this order means the old slot isn't freed up until the new one is
 secured.
 
 If the customer has an email address on file, they'll get a new calendar
-invite for the new time. The old invite stays in their calendar, so ask them
-to delete it.
+invite for the new time. Cancelling the old callback with **Email the customer** checked sends the calendar cancellation for the old invite. You may want to explain in the optional message that the new time is already booked; the standard email also includes a link to choose a new time.
 
 ### Add or change who gets booking emails
 
@@ -531,12 +500,9 @@ to delete it.
 
 ## 9. Good to know
 
-- **Customers can book up to about 2 weeks ahead.** The public calendar always
-  shows the days within the next 14 that are open in your weekly hours and
-  not closed by an override.
-- **There's no minimum notice.** A customer can book a slot that starts in a
-  few minutes, as long as it hasn't started yet. If you don't want last-minute
-  bookings on a busy day, block the remaining slots with a date override.
+- **You control the booking window.** The default is 14 calendar days including today, adjustable from 1 to 90 in Settings.
+- **You control minimum notice.** Choose how far in advance a callback must be booked. The server enforces it even for a customer with an old page open.
+
 - **Customers can't cancel or change bookings themselves.** They'll need to
   contact you, and you can cancel from the Bookings page.
 - **Double-booking is prevented automatically.** If two customers try to grab
@@ -561,12 +527,13 @@ to delete it.
 | "Invalid email or password."                                    | Check for typos, and that Caps Lock is off. If it keeps happening, contact your developer for a password reset.                                                       |
 | You're suddenly sent back to the sign-in page                   | Your 5-day sign-in period ended. Just sign in again.                                                                                                                  |
 | "Each day's end time must be after start."                      | On Weekly hours, one of the ticked days has an end time that's the same as or earlier than its start time. Fix it and save again.                                     |
-| "Blocked slots must be HH:mm (invalid: …)"                      | A blocked time isn't in 24-hour format. Use two digits for the hour, e.g. `09:00`, not `9:00` or `9am`.                                                               |
-| Blocked a time but customers can still book it                  | The time you typed probably isn't an actual slot start (e.g. `09:15` when slots are on the hour and half hour). Check the times against your slot duration.           |
+| "Blocked slots must use HH:mm times."                           | A blocked time isn't in 24-hour format. Use two digits for the hour, e.g. `09:00`, not `9:00` or `9am`.                                                               |
+| "… isn’t a slot start time …"                                   | Choose one of the valid start times listed in the error. Review overrides after changing slot duration.                                                               |
 | "Slot duration must be between 15 and 120 minutes."             | Pick a value from 15 to 120.                                                                                                                                          |
-| "Invalid email: …"                                              | One of the Notify emails is mistyped. Fix the address shown in the message.                                                                                           |
+| "Enter valid notification email addresses."                     | One of the Notify emails is mistyped. Fix the address shown in the message.                                                                                           |
 | A day shows "No open times on this day" for customers           | That day is fully booked, or all remaining times have already passed today. (Unticked days and days closed by an override don't appear at all.)                       |
 | Not receiving booking emails                                    | Check spam/junk, then check the addresses on the Settings page. The booking will still be on the Bookings page. If emails still don't arrive, contact your developer. |
+| "Email failed" after cancelling                                 | The callback is cancelled. Call the customer; do not assume they received the cancellation or calendar update.                                                        |
 | A new booking isn't on the Bookings page                        | Refresh the page.                                                                                                                                                     |
 | "Booking is temporarily unavailable" or "Something went wrong." | Try again in a minute. If it keeps happening, contact your developer; something may need attention behind the scenes.                                                 |
 
@@ -579,9 +546,7 @@ Get in touch for anything you can't do from the admin pages, including:
 - Password resets, adding or removing admin users
 - Opening on a day that's normally closed
 - Split hours on a regular basis (e.g. a daily lunch break)
-- Changing the booking window (currently about 2 weeks)
-- Changes to the email wording, sender name, or the behind-the-scenes copy
-  address
+- Changes to email wording, sender name, reschedule site URL, or optional business phone
 - Changes to the website's text, services list, photos, or pages
 - Any error message that keeps coming back
 - Anything that doesn't seem to be working the way this guide describes

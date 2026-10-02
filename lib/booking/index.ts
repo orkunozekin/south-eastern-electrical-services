@@ -9,6 +9,10 @@ export {
   generateDaySlots,
   getBookableDateStrings,
   slotIdForStart,
+  isBookingWithinAvailability,
+  isDateWithinBookingWindow,
+  bookingWindowEnd,
+  bookingCalendarWeeks,
 } from "./slots";
 export type {
   AvailabilityOverride,
