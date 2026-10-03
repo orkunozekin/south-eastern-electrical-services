@@ -23,3 +23,17 @@
 - **Gap:** Splitting the implementation left routing documentation and warning text describing the old recipient behavior, with only resolver tests in the recipient PR.
 - **Going forward:** Each independently mergeable PR must include matching configuration comments, client guidance, diagnostics, and tests of its save paths. Test stale settings snapshots so unrelated form saves cannot overwrite newer recipient choices.
 - **Pointers:** `lib/plunk.ts`, `app/actions/admin.ts`, `.env.example`, `docs/admin-guide.md`, `tests/notification-settings-save.test.ts`
+
+### 2026-10-02 — Current limits do not bound legacy records
+
+- **Source:** PR #16 · Greptile
+- **Gap:** Overlap queries assumed every stored appointment obeyed the current 120-minute limit, although previous settings allowed longer appointments. Day-lock documents were also omitted from the existing reset script.
+- **Going forward:** Query persisted interval boundaries without assuming current validation limits hold for historical records. Cover legacy intervals spanning prior days in regression tests, and update cleanup whenever a new collection is introduced.
+- **Pointers:** `lib/booking/repository.ts`, `tests/booking-emulator.test.ts`, `scripts/clear-bookings.mjs`
+
+### 2026-10-02 — Reject invalid requests before costly queries
+
+- **Source:** PR #16 · Macroscope and Greptile
+- **Gap:** Past requests and overlap queries could read unrelated future and cancelled records before filtering them out.
+- **Going forward:** Reject unavailable past starts before overlap reads; push status and both interval bounds into database queries, commit required indexes, and document index readiness as a rollout prerequisite. Emulator success does not prove production indexes exist.
+- **Pointers:** `lib/booking/repository.ts`, `firestore.indexes.json`, `tests/booking-query.test.ts`

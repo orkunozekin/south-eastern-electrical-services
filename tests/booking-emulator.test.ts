@@ -9,10 +9,14 @@ import {
   vi,
 } from "vitest";
 import { initializeApp, deleteApp, type App } from "firebase-admin/app";
-import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import {
+  getFirestore,
+  Timestamp,
+  type Firestore,
+} from "firebase-admin/firestore";
 import { DEFAULT_BOOKING_SETTINGS } from "../lib/booking/defaults";
 vi.mock("../lib/auth/session", () => ({
-  getVerifiedAdmin: vi.fn(async () => ({ uid: "emulator-admin" })),
+  requireAdmin: vi.fn(async () => ({ uid: "emulator-admin" })),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("../lib/plunk", async (importOriginal) => {
@@ -91,6 +95,64 @@ describe.skipIf(!enabled)(
       await db.terminate();
       await deleteApp(app);
     });
+    it("blocks legacy long bookings starting before the day and allows adjacent slots", async () => {
+      await db
+        .collection("bookings")
+        .doc("legacy-long")
+        .set({
+          name: "Legacy customer",
+          phone: "5551234567",
+          startsAt: Timestamp.fromDate(
+            new Date(+startsAt("09:00") - 24 * 3600000),
+          ),
+          endsAt: Timestamp.fromDate(startsAt("10:00")),
+          createdAt: Timestamp.now(),
+          status: "confirmed",
+          slotId: "legacy",
+        });
+      expect(
+        (await repo.listAvailableSlots(tomorrow)).map((s) =>
+          s.startsAt.toISOString(),
+        ),
+      ).not.toContain(startsAt("09:00").toISOString());
+      await expect(repo.createBooking(input("09:00"))).rejects.toMatchObject({
+        code: "SLOT_UNAVAILABLE",
+      });
+      await expect(repo.createBooking(input("10:00"))).resolves.toMatchObject({
+        status: "confirmed",
+      });
+      await db
+        .collection("bookings")
+        .doc("legacy-long")
+        .update({ status: "cancelled" });
+      await expect(repo.createBooking(input("09:00"))).resolves.toMatchObject({
+        status: "confirmed",
+      });
+    });
+    it("filters cancelled and later bookings before decoding overlap candidates", async () => {
+      // Deliberately omit other booking fields: these unrelated records must
+      // be excluded by Firestore, before bookingFromDoc attempts to decode them.
+      await db
+        .collection("bookings")
+        .doc("cancelled")
+        .set({
+          startsAt: Timestamp.fromDate(startsAt("09:00")),
+          endsAt: Timestamp.fromDate(startsAt("10:00")),
+          status: "cancelled",
+        });
+      await db
+        .collection("bookings")
+        .doc("later")
+        .set({
+          startsAt: Timestamp.fromDate(new Date(+startsAt("09:00") + 86400000)),
+          endsAt: Timestamp.fromDate(new Date(+startsAt("10:00") + 86400000)),
+          status: "confirmed",
+        });
+      expect(await repo.listAvailableSlots(tomorrow)).not.toHaveLength(0);
+      await expect(repo.createBooking(input("09:00"))).resolves.toMatchObject({
+        status: "confirmed",
+      });
+    });
     it("only confirms one concurrent request for the same slot", async () => {
       const results = await Promise.allSettled(
         Array.from({ length: 5 }, () => repo.createBooking(input("09:00"))),
@@ -98,5 +160,89 @@ describe.skipIf(!enabled)(
       expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
       expect(await repo.listBookings({ status: "confirmed" })).toHaveLength(1);
     }, 60000);
+    it("only confirms one of concurrent overlapping requests with different slot IDs", async () => {
+      const weeklyHours = Object.fromEntries(
+        Array.from({ length: 7 }, (_, day) => [
+          day,
+          [
+            { start: "09:00", end: "10:00" },
+            { start: "09:30", end: "10:30" },
+          ],
+        ]),
+      );
+      await repo.saveBookingSettings({
+        ...settings,
+        slotDurationMinutes: 60,
+        weeklyHours,
+      });
+      const results = await Promise.allSettled([
+        repo.createBooking(input("09:00")),
+        repo.createBooking(input("09:30")),
+      ]);
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    }, 60000);
+    it("reproduces the old bug when locking only individual local slot IDs", async () => {
+      // Control: the old transaction checked only slots/{local-start}, so
+      // different IDs never contended even when their time ranges overlapped.
+      async function legacyBooking(hm: string) {
+        const ref = db.collection("bookings").doc();
+        const slotRef = db
+          .collection("slots")
+          .doc(`${tomorrow}_${hm.replace(":", "")}`);
+        await db.runTransaction(async (tx) => {
+          const snap = await tx.get(slotRef);
+          if (snap.data()?.booked) throw new Error("Taken");
+          tx.set(slotRef, { booked: true, bookingId: ref.id });
+          tx.set(ref, {
+            startsAt: startsAt(hm),
+            endsAt: new Date(+startsAt(hm) + 60 * 60000),
+            status: "confirmed",
+          });
+        });
+      }
+      const results = await Promise.allSettled([
+        legacyBooking("09:00"),
+        legacyBooking("09:30"),
+      ]);
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2);
+    }, 60000);
+    it("excludes overlaps after changing slot length and permits adjacent bookings", async () => {
+      await repo.createBooking(input("09:30"));
+      await repo.saveBookingSettings({ ...settings, slotDurationMinutes: 60 });
+      expect(
+        (await repo.listAvailableSlots(tomorrow)).map((s) =>
+          s.startsAt.toISOString(),
+        ),
+      ).not.toContain(startsAt("09:00").toISOString());
+      await expect(repo.createBooking(input("09:00"))).rejects.toMatchObject({
+        code: "SLOT_UNAVAILABLE",
+      });
+      await expect(repo.createBooking(input("10:00"))).resolves.toMatchObject({
+        status: "confirmed",
+      });
+    });
+    it("ignores stale slot documents and preserves invitation identity before sending", async () => {
+      await db
+        .collection("slots")
+        .doc(`${tomorrow}_0900`)
+        .set({ booked: true });
+      const booking = await repo.createBooking({
+        ...input("09:00"),
+        email: "jane@example.com",
+        timezone: "America/Chicago",
+      });
+      const stored = (
+        await db.collection("bookings").doc(booking.id).get()
+      ).data();
+      expect(stored?.inviteUid).toBeTruthy();
+      expect(stored?.customerTimezone).toBe("America/Chicago");
+      const noEmail = await repo.createBooking(input("10:00"));
+      expect(noEmail.inviteUid).toBeUndefined();
+      expect((await repo.cancelBooking(booking.id)).changed).toBe(true);
+      expect((await repo.cancelBooking(booking.id)).changed).toBe(false);
+      await expect(repo.createBooking(input("09:00"))).resolves.toMatchObject({
+        status: "confirmed",
+      });
+    });
   },
 );

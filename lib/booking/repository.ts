@@ -5,7 +5,8 @@ import {
   type Query,
   type QueryDocumentSnapshot,
 } from "firebase-admin/firestore";
-import { formatInTimeZone } from "date-fns-tz";
+import { addDays } from "date-fns";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 
 import { buildInviteUid } from "@/lib/calendar-invite";
 import { getAdminDb } from "@/lib/firebase/admin";
@@ -15,7 +16,13 @@ import {
   DEFAULT_BOOKING_SETTINGS,
   SETTINGS_BOOKING_DOC,
 } from "./defaults";
-import { getAvailableSlots, slotIdForStart } from "./slots";
+import {
+  getAvailableSlots,
+  generateDaySlots,
+  bookingLockDates,
+  MAX_SLOT_MINUTES,
+  rangesOverlap,
+} from "./slots";
 import type {
   AvailabilityOverride,
   Booking,
@@ -90,7 +97,8 @@ function mergeSettings(data: DocumentData | undefined): BookingSettings {
         : DEFAULT_BOOKING_SETTINGS.timezone,
     slotDurationMinutes:
       typeof data.slotDurationMinutes === "number" &&
-      data.slotDurationMinutes > 0
+      data.slotDurationMinutes > 0 &&
+      data.slotDurationMinutes <= MAX_SLOT_MINUTES
         ? data.slotDurationMinutes
         : DEFAULT_BOOKING_SETTINGS.slotDurationMinutes,
     weeklyHours:
@@ -261,40 +269,40 @@ export async function listAvailabilityOverrides(range?: {
     .filter((item): item is AvailabilityOverride => item !== null);
 }
 
-async function getTakenSlotIdsForDate(date: string): Promise<Set<string>> {
-  const prefix = `${date}_`;
-  const snap = await getAdminDb()
-    .collection(COLLECTIONS.slots)
-    .where("__name__", ">=", prefix)
-    .where("__name__", "<", `${prefix}\uf8ff`)
-    .get();
+async function getBookedRangesForDate(
+  date: string,
+  timezone: string,
+): Promise<Booking[]> {
+  const dayStart = fromZonedTime(`${date}T00:00:00`, timezone);
+  const nextDate = addDays(new Date(`${date}T12:00:00Z`), 1)
+    .toISOString()
+    .slice(0, 10);
+  const dayEnd = fromZonedTime(`${nextDate}T00:00:00`, timezone);
 
-  const taken = new Set<string>();
-  for (const doc of snap.docs) {
-    if (doc.data().booked) {
-      taken.add(doc.id);
-    }
-  }
-  return taken;
+  const snap = await getAdminDb()
+    .collection(COLLECTIONS.bookings)
+    .where("status", "==", "confirmed")
+    .where("endsAt", ">", Timestamp.fromDate(dayStart))
+    .where("startsAt", "<", Timestamp.fromDate(dayEnd))
+    .orderBy("endsAt")
+    .orderBy("startsAt")
+    .get();
+  return snap.docs
+    .map(bookingFromDoc)
+    .filter(
+      (booking) => booking.status === "confirmed" && booking.startsAt < dayEnd,
+    );
 }
 
 export async function listAvailableSlots(date: string): Promise<Slot[]> {
-  if (!isValidDateString(date)) {
+  if (!isValidDateString(date))
     throw new BookingError(`Invalid date: ${date}`, "INVALID_DATE");
-  }
-
-  const [settings, override, takenSlotIds] = await Promise.all([
-    getBookingSettings(),
+  const settings = await getBookingSettings();
+  const [override, bookedRanges] = await Promise.all([
     getAvailabilityOverride(date),
-    getTakenSlotIdsForDate(date),
+    getBookedRangesForDate(date, settings.timezone),
   ]);
-
-  return getAvailableSlots({
-    date,
-    settings,
-    override,
-    takenSlotIds,
-  });
+  return getAvailableSlots({ date, settings, override, bookedRanges });
 }
 
 export async function listBookings(options?: {
@@ -332,88 +340,104 @@ export async function getBooking(id: string): Promise<Booking | null> {
   return bookingFromDoc(snap as QueryDocumentSnapshot);
 }
 
-/**
- * Creates a confirmed booking in a transaction.
- * Locks the slot doc so concurrent requests cannot double-book.
- */
+/** Settings, overrides, notice and overlaps are rechecked inside the transaction. */
 export async function createBooking(
   input: CreateBookingInput,
 ): Promise<Booking> {
   const fields = validateBookingFields(input.name, input.phone, input.email);
-  if (!fields.ok) {
-    throw new BookingError(fields.error, "VALIDATION");
-  }
-
-  if (
-    !(input.startsAt instanceof Date) ||
-    Number.isNaN(input.startsAt.getTime())
-  ) {
+  if (!fields.ok) throw new BookingError(fields.error, "VALIDATION");
+  if (!(input.startsAt instanceof Date) || Number.isNaN(+input.startsAt)) {
     throw new BookingError("Invalid appointment time.", "VALIDATION");
   }
-
-  const settings = await getBookingSettings();
-  const date = formatInTimeZone(
-    input.startsAt,
-    settings.timezone,
-    "yyyy-MM-dd",
-  );
-  const slotId = slotIdForStart(input.startsAt, settings.timezone);
-
-  const available = await listAvailableSlots(date);
-  const match = available.find((slot) => slot.slotId === slotId);
-  if (!match) {
-    throw new BookingError(
-      "That time slot is no longer available.",
-      "SLOT_UNAVAILABLE",
-    );
-  }
-
   const db = getAdminDb();
   const bookingRef = db.collection(COLLECTIONS.bookings).doc();
-  const slotRef = db.collection(COLLECTIONS.slots).doc(slotId);
-
-  await db.runTransaction(async (tx) => {
-    const slotSnap = await tx.get(slotRef);
-    if (slotSnap.exists && slotSnap.data()?.booked) {
+  return db.runTransaction(async (tx) => {
+    const settingsSnap = await tx.get(
+      db.collection(COLLECTIONS.settings).doc(SETTINGS_BOOKING_DOC),
+    );
+    const settings = mergeSettings(settingsSnap.data());
+    const date = formatInTimeZone(
+      input.startsAt,
+      settings.timezone,
+      "yyyy-MM-dd",
+    );
+    const overrideSnap = await tx.get(
+      db.collection(COLLECTIONS.availabilityOverrides).doc(date),
+    );
+    const override = overrideFromData(date, overrideSnap.data());
+    const match = generateDaySlots(date, settings, override).find(
+      (slot) => +slot.startsAt === +input.startsAt,
+    );
+    if (!match || match.startsAt <= new Date())
+      throw new BookingError(
+        "That time slot is no longer available.",
+        "SLOT_UNAVAILABLE",
+      );
+    const lockRefs = bookingLockDates(match.startsAt, match.endsAt).map((day) =>
+      db.collection(COLLECTIONS.bookingDays).doc(day),
+    );
+    // Explicit shared reads AND writes force concurrent overlapping requests to retry.
+    for (const ref of lockRefs) await tx.get(ref);
+    const candidates = await tx.get(
+      db
+        .collection(COLLECTIONS.bookings)
+        .where("status", "==", "confirmed")
+        .where("endsAt", ">", Timestamp.fromDate(match.startsAt))
+        .where("startsAt", "<", Timestamp.fromDate(match.endsAt))
+        .orderBy("endsAt")
+        .orderBy("startsAt"),
+    );
+    const bookedRanges = candidates.docs
+      .map(bookingFromDoc)
+      .filter((b) => b.status === "confirmed" && rangesOverlap(b, match));
+    const available = getAvailableSlots({
+      date,
+      settings,
+      override,
+      bookedRanges,
+    });
+    if (!available.some((slot) => +slot.startsAt === +match.startsAt)) {
       throw new BookingError(
         "That time slot is no longer available.",
         "SLOT_UNAVAILABLE",
       );
     }
-
     const now = Timestamp.now();
-    tx.set(slotRef, {
-      booked: true,
-      bookingId: bookingRef.id,
-      startsAt: Timestamp.fromDate(match.startsAt),
-      endsAt: Timestamp.fromDate(match.endsAt),
-    });
-    tx.set(bookingRef, {
-      name: fields.value.name,
-      phone: fields.value.phone,
-      ...(fields.value.email
-        ? {
-            email: fields.value.email,
-            inviteUid: buildInviteUid(
-              bookingRef.id,
-              process.env.PLUNK_FROM_EMAIL,
-            ),
-          }
-        : {}),
+    const identity = fields.value.email
+      ? {
+          inviteUid: buildInviteUid(
+            bookingRef.id,
+            process.env.PLUNK_FROM_EMAIL,
+          ),
+        }
+      : {};
+    const booking: Booking = {
+      id: bookingRef.id,
+      ...fields.value,
+      ...identity,
       ...(input.timezone ? { customerTimezone: input.timezone } : {}),
+      startsAt: match.startsAt,
+      endsAt: match.endsAt,
+      slotId: match.slotId,
+      status: "confirmed",
+      createdAt: now.toDate(),
+    };
+    const { id: _id, ...data } = booking;
+    void _id;
+    tx.set(bookingRef, {
+      ...data,
       startsAt: Timestamp.fromDate(match.startsAt),
       endsAt: Timestamp.fromDate(match.endsAt),
-      status: "confirmed" satisfies BookingStatus,
       createdAt: now,
-      slotId,
     });
+    for (const ref of lockRefs)
+      tx.set(
+        ref,
+        { lastBookingAt: now, count: FieldValue.increment(1) },
+        { merge: true },
+      );
+    return booking;
   });
-
-  const created = await getBooking(bookingRef.id);
-  if (!created) {
-    throw new Error("Booking write succeeded but document was not found.");
-  }
-  return created;
 }
 
 /**
@@ -437,16 +461,10 @@ export async function cancelBooking(
       return false;
     }
 
-    const slotId = String(data.slotId);
     tx.update(bookingRef, {
       status: "cancelled" satisfies BookingStatus,
       cancelledAt: FieldValue.serverTimestamp(),
     });
-    tx.set(
-      db.collection(COLLECTIONS.slots).doc(slotId),
-      { booked: false, bookingId: null },
-      { merge: true },
-    );
     return true;
   });
 
