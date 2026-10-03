@@ -283,7 +283,11 @@ export function maskedBootstrapRecipients(): string[] {
 
 export function cancellationRescheduleUrl(): string | null {
   try {
-    const url = new URL(process.env.SITE_URL ?? "");
+    const siteUrl = process.env.SITE_URL?.trim();
+    const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+    const url = new URL(
+      siteUrl || (productionHost ? `https://${productionHost}` : ""),
+    );
     if (
       !["http:", "https:"].includes(url.protocol) ||
       url.username ||
