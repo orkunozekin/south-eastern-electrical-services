@@ -282,6 +282,71 @@ describe.skipIf(!enabled)(
       ).toHaveLength(2);
       expect(await repo.listAvailableSlots(tomorrow)).toEqual([]);
     });
+    it("does not cancel an unrelated conflict when adding a block", async () => {
+      const oldConflict = await repo.createBooking(input("09:00"));
+      const affected = await repo.createBooking(input("10:00"));
+      await repo.saveBookingSettings({
+        ...settings,
+        weeklyHours: Object.fromEntries(
+          Array.from({ length: 7 }, (_, day) => [
+            day,
+            [{ start: "10:00", end: "12:00" }],
+          ]),
+        ),
+      });
+      const proposal = {
+        date: tomorrow,
+        closed: false,
+        blockedSlots: ["10:00"],
+      };
+      const preview = await actions.previewOverrideAction(proposal);
+      if (!preview.ok) throw new Error(preview.error);
+      expect(preview.conflicts.map((b) => b.id)).toEqual([affected.id]);
+      const result = await actions.saveOverrideAction({
+        ...proposal,
+        conflictResolution: "cancel",
+      });
+      if (!result.ok) throw new Error(result.error);
+      expect(result.results.map((b) => b.id)).toEqual([affected.id]);
+      expect((await repo.getBooking(oldConflict.id))?.status).toBe("confirmed");
+    });
+    it.each(["weekly", "settings"])(
+      "serializes concurrent bookings with %s saves",
+      async (kind) => {
+        const weeklyHours = Object.fromEntries(
+          Array.from({ length: 7 }, (_, day) => [
+            day,
+            [{ start: "10:00", end: "12:00" }],
+          ]),
+        );
+        const [booking, saved] = await Promise.allSettled([
+          repo.createBooking(input("09:00")),
+          kind === "weekly"
+            ? actions.saveWeeklyHoursAction(weeklyHours)
+            : actions.saveAdminSettingsAction({
+                ...settings,
+                timezone: "America/New_York",
+              }),
+        ]);
+        expect(saved.status).toBe("fulfilled");
+        if (saved.status !== "fulfilled") throw saved.reason;
+        if (booking.status === "fulfilled") {
+          expect(saved.value).toMatchObject({
+            ok: false,
+            conflicts: [expect.objectContaining({ id: booking.value.id })],
+          });
+          expect((await repo.getBookingSettings()).timezone).toBe(
+            settings.timezone,
+          );
+          expect((await repo.getBookingSettings()).weeklyHours).toEqual(
+            settings.weeklyHours,
+          );
+        } else {
+          expect(saved.value).toMatchObject({ ok: true });
+          expect(booking.reason).toMatchObject({ code: "SLOT_UNAVAILABLE" });
+        }
+      },
+    );
     it("guards every admin preview and mutation and rejects invalid blocked starts", async () => {
       const result = await actions.previewOverrideAction({
         date: tomorrow,

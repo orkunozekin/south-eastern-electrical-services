@@ -13,4 +13,5 @@ export {
   recordCancelNotice,
   saveAvailabilityOverride,
   saveBookingSettings,
+  saveSettingsWithConflicts,
 } from "./repository";

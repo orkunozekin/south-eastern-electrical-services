@@ -58,3 +58,10 @@
 - **Gap:** Recomputing weeks from the client clock can hide server-offered dates when business midnight passes.
 - **Going forward:** Generate dates and week groups from the same server instant and retain both in the loaded calendar state.
 - **Pointers:** `app/actions/booking.ts`, `components/booking-wizard.tsx`
+
+### 2026-10-03 — Save availability against the booking transaction
+
+- **Source:** PR #19 · Macroscope and Greptile
+- **Gap:** A separate conflict query and settings write can miss concurrent bookings. Override cancellation also included conflicts that existed before the edit, and grid coverage misclassified open-hour tails.
+- **Going forward:** Check conflicts and save settings in one transaction shared with booking creation. Cancel only bookings newly affected by an override. Evaluate existing appointments against open intervals and blocks, independently of the candidate slot grid.
+- **Pointers:** `lib/booking/repository.ts`, `lib/booking/slots.ts`, `app/actions/admin.ts`, `tests/booking-emulator.test.ts`

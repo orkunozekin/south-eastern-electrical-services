@@ -34,7 +34,20 @@ vi.mock("../lib/firebase/config", () => ({
 vi.mock("../lib/booking/server", async (importOriginal) => {
   const original =
     await importOriginal<typeof import("../lib/booking/server")>();
-  return { ...original, findConflictingBookings: vi.fn(async () => []) };
+  return {
+    ...original,
+    findConflictingBookings: vi.fn(async () => []),
+    saveSettingsWithConflicts: async (
+      changes: Partial<import("../lib/booking/types").BookingSettings>,
+    ) => {
+      const settings = { ...(await original.getBookingSettings()), ...changes };
+      await original.saveBookingSettings(
+        settings,
+        Object.keys(changes) as (keyof typeof settings)[],
+      );
+      return { settings, conflicts: [], saved: true };
+    },
+  };
 });
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import {

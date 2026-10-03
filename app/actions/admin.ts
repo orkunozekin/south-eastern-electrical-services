@@ -23,7 +23,7 @@ import {
   listAvailabilityOverrides,
   listBookings,
   saveAvailabilityOverride,
-  saveBookingSettings,
+  saveSettingsWithConflicts,
 } from "@/lib/booking/server";
 import {
   cancelAndNotify,
@@ -236,33 +236,25 @@ export async function saveAdminSettingsAction(
   const invalid = validateSettings(input);
   if (invalid) return { ok: false, error: invalid };
   try {
-    const current = await getBookingSettings();
-    const settings = {
-      ...current,
-      ...input,
-      timezone: input.timezone.trim(),
-      notifyEmails: [
-        ...new Set(input.notifyEmails.map((e) => e.trim().toLowerCase())),
-      ],
-    };
-    const conflicts = await findConflictingBookings({
-      settings,
-      overrides: new Map(),
-    });
-    if (conflicts.length && options?.keepConflicts !== true)
+    const { settings, conflicts, saved } = await saveSettingsWithConflicts(
+      {
+        timezone: input.timezone.trim(),
+        slotDurationMinutes: input.slotDurationMinutes,
+        minNoticeMinutes: input.minNoticeMinutes,
+        bookingWindowDays: input.bookingWindowDays,
+        notifyEmails: [
+          ...new Set(input.notifyEmails.map((e) => e.trim().toLowerCase())),
+        ],
+      },
+      options?.keepConflicts === true,
+    );
+    if (!saved)
       return {
         ok: false,
         error:
           "Some bookings are outside the proposed hours. Review them before saving.",
         conflicts: conflicts.map((b) => dto(b, settings)),
       };
-    await saveBookingSettings(settings, [
-      "timezone",
-      "slotDurationMinutes",
-      "minNoticeMinutes",
-      "bookingWindowDays",
-      "notifyEmails",
-    ]);
     revalidateAdmin();
     return { ok: true };
   } catch (error) {
@@ -324,11 +316,12 @@ async function proposedOverride(
 async function overrideConflicts(
   override: AvailabilityOverride,
   settings: BookingSettings,
+  previous: AvailabilityOverride | null,
 ) {
   const nextDate = addDays(new Date(`${override.date}T12:00:00Z`), 1)
     .toISOString()
     .slice(0, 10);
-  return findConflictingBookings({
+  const conflicts = await findConflictingBookings({
     settings,
     overrides: new Map([[override.date, override]]),
     from: new Date(
@@ -339,6 +332,9 @@ async function overrideConflicts(
     ),
     to: fromZonedTime(`${nextDate}T00:00:00`, settings.timezone),
   });
+  return conflicts.filter((booking) =>
+    isBookingWithinAvailability(booking, settings, previous),
+  );
 }
 
 export async function previewOverrideAction(
@@ -347,8 +343,9 @@ export async function previewOverrideAction(
   await requireAdmin();
   try {
     const settings = await getBookingSettings();
+    const previous = await getAvailabilityOverride(input.date);
     const proposal = await proposedOverride(input, settings);
-    const conflicts = await overrideConflicts(proposal, settings);
+    const conflicts = await overrideConflicts(proposal, settings, previous);
     return { ok: true, conflicts: conflicts.map((b) => dto(b, settings)) };
   } catch (error) {
     return { ok: false, error: toActionError(error) };
@@ -378,12 +375,13 @@ export async function saveOverrideAction(
   let saved = false;
   try {
     const settings = await getBookingSettings();
+    const previous = await getAvailabilityOverride(input.date);
     const proposal = await proposedOverride(input, settings);
     await saveAvailabilityOverride(proposal);
     saved = true;
     // Recompute after the override is saved: bookings committed before this save
     // are included, while in-flight booking transactions re-read the override.
-    const conflicts = await overrideConflicts(proposal, settings);
+    const conflicts = await overrideConflicts(proposal, settings, previous);
     const results: OverrideCancellationResult[] = [];
     if (input.conflictResolution !== "keep") {
       for (const booking of conflicts) {
@@ -464,19 +462,17 @@ export async function saveWeeklyHoursAction(
   const invalid = validateWeeklyHours(weeklyHours);
   if (invalid) return { ok: false, error: invalid };
   try {
-    const settings = { ...(await getBookingSettings()), weeklyHours };
-    const conflicts = await findConflictingBookings({
-      settings,
-      overrides: new Map(),
-    });
-    if (conflicts.length && options?.keepConflicts !== true)
+    const { settings, conflicts, saved } = await saveSettingsWithConflicts(
+      { weeklyHours },
+      options?.keepConflicts === true,
+    );
+    if (!saved)
       return {
         ok: false,
         error:
           "Some bookings are outside the proposed hours. Review them before saving.",
         conflicts: conflicts.map((b) => dto(b, settings)),
       };
-    await saveBookingSettings(settings, ["weeklyHours"]);
     revalidateAdmin();
     return { ok: true };
   } catch (error) {

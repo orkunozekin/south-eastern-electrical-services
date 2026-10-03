@@ -212,6 +212,66 @@ export async function saveBookingSettings(
     );
 }
 
+/** Validate and save against the same snapshot used by booking transactions. */
+export async function saveSettingsWithConflicts(
+  changes: Partial<BookingSettings>,
+  keepConflicts = false,
+): Promise<{
+  settings: BookingSettings;
+  conflicts: Booking[];
+  saved: boolean;
+}> {
+  const db = getAdminDb();
+  const settingsRef = db
+    .collection(COLLECTIONS.settings)
+    .doc(SETTINGS_BOOKING_DOC);
+  return db.runTransaction(async (tx) => {
+    const current = await tx.get(settingsRef);
+    const settings = { ...mergeSettings(current.data()), ...changes };
+    const snap = await tx.get(
+      db
+        .collection(COLLECTIONS.bookings)
+        .where("startsAt", ">=", Timestamp.now())
+        .orderBy("startsAt"),
+    );
+    const bookings = snap.docs
+      .map(bookingFromDoc)
+      .filter((b) => b.status === "confirmed");
+    const overrides = new Map<string, AvailabilityOverride | null>();
+    for (const booking of bookings) {
+      const date = formatInTimeZone(
+        booking.startsAt,
+        settings.timezone,
+        "yyyy-MM-dd",
+      );
+      if (!overrides.has(date)) {
+        const override = await tx.get(
+          db.collection(COLLECTIONS.availabilityOverrides).doc(date),
+        );
+        overrides.set(date, overrideFromData(date, override.data()));
+      }
+    }
+    const conflicts = bookings.filter(
+      (b) =>
+        !isBookingWithinAvailability(
+          b,
+          settings,
+          overrides.get(
+            formatInTimeZone(b.startsAt, settings.timezone, "yyyy-MM-dd"),
+          ) ?? null,
+        ),
+    );
+    const saved = keepConflicts || conflicts.length === 0;
+    if (saved)
+      tx.set(
+        settingsRef,
+        { ...changes, updatedAt: FieldValue.serverTimestamp() },
+        { merge: true },
+      );
+    return { settings, conflicts, saved };
+  });
+}
+
 export async function getAvailabilityOverride(
   date: string,
 ): Promise<AvailabilityOverride | null> {
@@ -473,6 +533,13 @@ export async function createBooking(
     };
     const { id: _id, ...data } = booking;
     void _id;
+    // Settings saves read this document, so a booking committed during their
+    // conflict check forces a retry with the newly committed booking included.
+    tx.set(
+      db.collection(COLLECTIONS.settings).doc(SETTINGS_BOOKING_DOC),
+      { bookingRevision: FieldValue.increment(1) },
+      { merge: true },
+    );
     tx.set(bookingRef, {
       ...data,
       startsAt: Timestamp.fromDate(match.startsAt),

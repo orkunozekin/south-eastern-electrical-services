@@ -247,3 +247,17 @@ describe("settings safety", () => {
       }),
     ).toMatch(/overlap/));
 });
+
+it("keeps a booking in the open tail after changing to 45-minute slots", () => {
+  expect(
+    isBookingWithinAvailability(
+      range("16:30", "17:00"),
+      {
+        ...settings,
+        slotDurationMinutes: 45,
+        weeklyHours: { 1: [{ start: "09:00", end: "17:00" }] },
+      },
+      null,
+    ),
+  ).toBe(true);
+});

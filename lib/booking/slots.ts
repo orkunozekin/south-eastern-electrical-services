@@ -186,15 +186,24 @@ export function isBookingWithinAvailability(
     settings.timezone,
     "yyyy-MM-dd",
   );
-  // Merge adjacent open slots so an existing long booking remains valid when
-  // the new grid uses shorter slots. Gaps and blocked slots remain unavailable.
-  const slots = generateDaySlots(date, settings, override).sort(
-    (a, b) => +a.startsAt - +b.startsAt,
-  );
+  const ranges = resolveDayHours(date, settings, override)
+    .map((range) => ({
+      startsAt: fromZonedTime(`${date}T${range.start}:00`, settings.timezone),
+      endsAt: fromZonedTime(`${date}T${range.end}:00`, settings.timezone),
+    }))
+    .sort((a, b) => +a.startsAt - +b.startsAt);
+  const blocked = (override?.blockedSlots ?? []).map((time) => {
+    const startsAt = fromZonedTime(`${date}T${time}:00`, settings.timezone);
+    return {
+      startsAt,
+      endsAt: addMinutes(startsAt, settings.slotDurationMinutes),
+    };
+  });
+  if (blocked.some((range) => rangesOverlap(booking, range))) return false;
   let coveredUntil = booking.startsAt;
-  for (const slot of slots) {
-    if (slot.startsAt > coveredUntil) break;
-    if (slot.endsAt > coveredUntil) coveredUntil = slot.endsAt;
+  for (const range of ranges) {
+    if (range.startsAt > coveredUntil) break;
+    if (range.endsAt > coveredUntil) coveredUntil = range.endsAt;
     if (coveredUntil >= booking.endsAt) return true;
   }
   return false;
