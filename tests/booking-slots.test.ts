@@ -31,6 +31,17 @@ function available(duration: number, bookedRanges = [range("09:30", "10:00")]) {
   }).map((s) => s.startsAt.toISOString().slice(11, 16));
 }
 describe("booking availability", () => {
+  it("offers at least 14 weekdays by default throughout the week", () => {
+    for (let day = 5; day <= 11; day++) {
+      expect(
+        getBookableDateStrings(
+          DEFAULT_BOOKING_SETTINGS,
+          undefined,
+          new Date(`2026-10-${String(day).padStart(2, "0")}T12:00:00Z`),
+        ).length,
+      ).toBeGreaterThanOrEqual(14);
+    }
+  });
   it("excludes overlap after a longer grid replaces shorter slots", () =>
     expect(available(60)).toEqual(["10:00", "11:00"]));
   it("excludes both halves after a shorter grid replaces longer slots", () =>
@@ -172,7 +183,7 @@ describe("settings safety", () => {
   it("defaults missing legacy settings without changing the notice period", () => {
     expect(mergeSettings({ timezone: "UTC" })).toMatchObject({
       minNoticeMinutes: 0,
-      bookingWindowDays: 14,
+      bookingWindowDays: 21,
     });
     expect(
       mergeSettings({
@@ -182,7 +193,7 @@ describe("settings safety", () => {
       }),
     ).toMatchObject({
       minNoticeMinutes: 0,
-      bookingWindowDays: 14,
+      bookingWindowDays: 21,
       slotDurationMinutes: 30,
     });
   });

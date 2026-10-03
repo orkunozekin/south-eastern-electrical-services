@@ -16,7 +16,8 @@ export const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
   notifyEmails: [],
   // Preserve existing behaviour until the client chooses a notice period.
   minNoticeMinutes: 0,
-  bookingWindowDays: 14,
+  // Three calendar weeks offer 15 weekdays with the default Mon–Fri hours.
+  bookingWindowDays: 21,
 };
 
 export const COLLECTIONS = {

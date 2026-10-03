@@ -569,7 +569,7 @@ isn't confusing.
 
 ## 9. Good to know
 
-- **The booking window is configurable.** Settings controls how many calendar days customers can book, including today (1–90 days, default 14). Closed days count toward the window. Longer windows have week navigation.
+- **The booking window is configurable.** Settings controls how many calendar days customers can book, including today (1–90 days, default 21). The default offers 15 weekdays before closures. Closed days count toward the window. Longer windows have week navigation.
 - **Minimum notice is configurable.** Settings can exclude slots within the chosen notice period. The default is zero until you choose a value. Slots exactly on the notice boundary are also excluded. Existing bookings keep their original times.
 
 - **Customers can't cancel or change bookings themselves.** They'll need to

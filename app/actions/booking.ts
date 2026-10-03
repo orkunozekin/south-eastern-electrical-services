@@ -41,10 +41,11 @@ function toErrorMessage(error: unknown): string {
   if (error instanceof Error && error.name === "BookingError") {
     return toUserFacingError(error.message);
   }
+  // Keep infrastructure failures observable even when visitors get a safe message.
+  console.error("[booking]", error);
   if (error instanceof Error && /firebase/i.test(error.message)) {
     return UNAVAILABLE;
   }
-  console.error("[booking]", error);
   return "Something went wrong. Please try again.";
 }
 
