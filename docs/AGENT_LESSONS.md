@@ -58,3 +58,31 @@
 - **Gap:** Recomputing weeks from the client clock can hide server-offered dates when business midnight passes.
 - **Going forward:** Generate dates and week groups from the same server instant and retain both in the loaded calendar state.
 - **Pointers:** `app/actions/booking.ts`, `components/booking-wizard.tsx`
+
+### 2026-10-03 — Save availability against the booking transaction
+
+- **Source:** PR #19 · Macroscope and Greptile
+- **Gap:** A separate conflict query and settings write can miss concurrent bookings. Override cancellation also included conflicts that existed before the edit, and grid coverage misclassified open-hour tails.
+- **Going forward:** Check conflicts and save settings in one transaction shared with booking creation. Cancel only bookings newly affected by an override. Evaluate existing appointments against open intervals and blocks, independently of the candidate slot grid.
+- **Pointers:** `lib/booking/repository.ts`, `lib/booking/slots.ts`, `app/actions/admin.ts`, `tests/booking-emulator.test.ts`
+
+### 2026-10-03 — Guard override cancellations against later edits
+
+- **Source:** PR #19 · Macroscope and Greptile
+- **Gap:** Cancellations used a proposal after another admin could replace it; obsolete blocked starts also disagreed with public availability.
+- **Going forward:** Check the persisted override version inside the cancellation transaction before sending notices. Apply only blocked intervals whose starts exist on the current grid.
+- **Pointers:** `lib/booking/repository.ts`, `lib/booking/cancellation.ts`, `lib/booking/slots.ts`
+
+### 2026-10-03 — Validate action fields and whole legacy intervals
+
+- **Source:** PR #19 · Macroscope
+- **Gap:** Spreading action input persisted unsupported hours, and conflict checks loaded overrides only for an appointment's start date.
+- **Going forward:** Build action writes from explicitly allowed fields. Query intersecting intervals and load every business-local date touched by legacy appointments, using an exclusive end boundary.
+- **Pointers:** `app/actions/admin.ts`, `lib/booking/repository.ts`, `lib/booking/slots.ts`
+
+### 2026-10-03 — Guard both sides of an override save
+
+- **Source:** PR #19 · Greptile
+- **Gap:** Checking the newly saved version protected later cancellations, but not the baseline read before another admin's intervening edit.
+- **Going forward:** Read the baseline and its version together, then condition the save on that version (or document absence). Continue checking the resulting version during cancellation.
+- **Pointers:** `getAvailabilityOverrideSnapshot`, `saveAvailabilityOverride`, `app/actions/admin.ts`

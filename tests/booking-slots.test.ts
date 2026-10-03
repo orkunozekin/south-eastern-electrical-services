@@ -3,8 +3,11 @@ import { DEFAULT_BOOKING_SETTINGS } from "../lib/booking/defaults";
 import {
   bookingCalendarWeeks,
   bookingLockDates,
+  bookingAvailabilityDates,
   getAvailableSlots,
   getBookableDateStrings,
+  isBookingWithinAvailability,
+  isBookingAffectedByOverride,
 } from "../lib/booking/slots";
 import { mergeSettings } from "../lib/booking/repository";
 import {
@@ -168,6 +171,46 @@ describe("booking availability", () => {
       ),
     ).toEqual(["2026-10-05", "2026-10-06"]));
 });
+describe("conflict warnings", () => {
+  it("keeps a shorter booking contained in a longer slot", () =>
+    expect(
+      isBookingWithinAvailability(
+        range("09:30", "10:00"),
+        { ...settings, slotDurationMinutes: 60 },
+        null,
+      ),
+    ).toBe(true));
+  it("keeps a longer booking covered by adjacent shorter open slots", () =>
+    expect(
+      isBookingWithinAvailability(range("09:00", "10:00"), settings, null),
+    ).toBe(true));
+  it("rejects bookings outside hours or on closed days", () => {
+    expect(
+      isBookingWithinAvailability(range("08:30", "09:00"), settings, null),
+    ).toBe(false);
+    expect(
+      isBookingWithinAvailability(range("09:00", "09:30"), settings, {
+        date: "2026-10-05",
+        closed: true,
+      }),
+    ).toBe(false);
+  });
+  it("rejects any overlap with a blocked slot", () =>
+    expect(
+      isBookingWithinAvailability(range("09:00", "10:00"), settings, {
+        date: "2026-10-05",
+        blockedSlots: ["09:30"],
+      }),
+    ).toBe(false));
+  it("uses proposed timezone rather than original local labels", () =>
+    expect(
+      isBookingWithinAvailability(
+        range("09:00", "09:30"),
+        { ...settings, timezone: "America/New_York" },
+        null,
+      ),
+    ).toBe(false));
+});
 describe("settings safety", () => {
   it("defaults missing legacy settings without changing the notice period", () => {
     expect(mergeSettings({ timezone: "UTC" })).toMatchObject({
@@ -205,4 +248,68 @@ describe("settings safety", () => {
         ],
       }),
     ).toMatch(/overlap/));
+});
+
+it("keeps a booking in the open tail after changing to 45-minute slots", () => {
+  expect(
+    isBookingWithinAvailability(
+      range("16:30", "17:00"),
+      {
+        ...settings,
+        slotDurationMinutes: 45,
+        weeklyHours: { 1: [{ start: "09:00", end: "17:00" }] },
+      },
+      null,
+    ),
+  ).toBe(true);
+});
+
+it("ignores obsolete blocks after a duration change while retaining active blocks", () => {
+  const changed = { ...settings, slotDurationMinutes: 45 };
+  expect(
+    isBookingWithinAvailability(range("10:00", "10:30"), changed, {
+      date: "2026-10-05",
+      blockedSlots: ["09:30"],
+    }),
+  ).toBe(true);
+  expect(
+    isBookingWithinAvailability(range("10:00", "10:30"), changed, {
+      date: "2026-10-05",
+      blockedSlots: ["09:45"],
+    }),
+  ).toBe(false);
+});
+
+it("enumerates every business-local date of a legacy interval, excluding its exact end", () => {
+  expect(
+    bookingAvailabilityDates(
+      {
+        startsAt: new Date("2026-10-05T22:00Z"),
+        endsAt: new Date("2026-10-07T00:00Z"),
+      },
+      "UTC",
+    ),
+  ).toEqual(["2026-10-05", "2026-10-06"]);
+  expect(
+    isBookingWithinAvailability(
+      range("09:00", "09:30"),
+      settings,
+      new Map([["2026-10-05", { date: "2026-10-05", closed: true }]]),
+    ),
+  ).toBe(false);
+});
+
+it("detects closing a date for a booking in the open tail of a changed grid", () => {
+  expect(
+    isBookingAffectedByOverride(
+      range("16:30", "17:00"),
+      {
+        ...settings,
+        slotDurationMinutes: 45,
+        weeklyHours: { 1: [{ start: "09:00", end: "17:00" }] },
+      },
+      null,
+      { date: "2026-10-05", closed: true },
+    ),
+  ).toBe(true);
 });

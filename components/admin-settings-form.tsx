@@ -2,7 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
-import { saveAdminSettingsAction } from "@/app/actions/admin";
+import {
+  previewSettingsAction,
+  saveAdminSettingsAction,
+  type AdminBookingDto,
+} from "@/app/actions/admin";
+import { AdminConflictPanel } from "@/components/admin-conflict-panel";
 import { bookingWindowEnd, type BookingSettings } from "@/lib/booking";
 import {
   formatInZone,
@@ -48,6 +53,7 @@ export function AdminSettingsForm({
   );
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [conflicts, setConflicts] = useState<AdminBookingDto[] | null>(null);
   const [pending, startTransition] = useTransition();
   const input = {
     timezone,
@@ -72,18 +78,32 @@ export function AdminSettingsForm({
     : null;
   function edit(change: () => void) {
     change();
+    setConflicts(null);
     setMessage(null);
     setError(null);
   }
-  function save() {
+  function save(keepConflicts = false) {
     setError(null);
     setMessage(null);
     startTransition(async () => {
-      const result = await saveAdminSettingsAction(input);
+      if (!keepConflicts) {
+        const preview = await previewSettingsAction(input);
+        if (!preview.ok) {
+          setError(preview.error);
+          return;
+        }
+        if (preview.conflicts.length) {
+          setConflicts(preview.conflicts);
+          return;
+        }
+      }
+      const result = await saveAdminSettingsAction(input, { keepConflicts });
       if (!result.ok) {
         setError(result.error);
+        if (result.conflicts) setConflicts(result.conflicts);
         return;
       }
+      setConflicts(null);
       setMessage("Settings saved.");
       router.refresh();
     });
@@ -117,7 +137,7 @@ export function AdminSettingsForm({
           </select>
           <span className="text-slate mt-2 block text-sm">
             Availability hours and business email notifications use this
-            timezone. Existing bookings keep their original appointment times.
+            timezone. We’ll warn you about affected bookings before saving.
           </span>
         </label>
         <label className="block">
@@ -243,6 +263,28 @@ export function AdminSettingsForm({
           </span>
         </label>
       </fieldset>
+      {conflicts && (
+        <AdminConflictPanel bookings={conflicts}>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => save(true)}
+              className={buttonClass}
+            >
+              Save anyway
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setConflicts(null)}
+              className="border-navy/20 text-navy border px-4 py-3 text-sm"
+            >
+              Go back
+            </button>
+          </div>
+        </AdminConflictPanel>
+      )}
       {error && (
         <p role="alert" className="text-sm text-red-700">
           {error}
@@ -253,11 +295,11 @@ export function AdminSettingsForm({
           {message}
         </p>
       )}
-      {
+      {!conflicts && (
         <button type="submit" disabled={pending} className={buttonClass}>
           {pending ? "Checking and saving…" : "Save settings"}
         </button>
-      }
+      )}
     </form>
   );
 }

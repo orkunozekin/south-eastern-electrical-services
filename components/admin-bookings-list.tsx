@@ -207,6 +207,11 @@ export function AdminBookingsList({ bookings }: AdminBookingsListProps) {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-navy font-semibold">{booking.name}</p>
+                      {booking.outsideHours && (
+                        <p className="text-sm font-medium text-amber-800">
+                          Outside current hours
+                        </p>
+                      )}
                       <p className="text-slate text-sm">{when}</p>
                       <p className="text-slate text-sm">
                         {booking.phoneDisplay}

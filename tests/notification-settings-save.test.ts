@@ -26,11 +26,29 @@ vi.mock("../lib/firebase/admin", () => ({
   }),
 }));
 vi.mock("../lib/auth/session", () => ({
-  getVerifiedAdmin: vi.fn(async () => ({ uid: "test-admin" })),
+  requireAdmin: vi.fn(async () => ({ uid: "test-admin" })),
 }));
 vi.mock("../lib/firebase/config", () => ({
   isFirebaseAdminConfigured: () => true,
 }));
+vi.mock("../lib/booking/server", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("../lib/booking/server")>();
+  return {
+    ...original,
+    findConflictingBookings: vi.fn(async () => []),
+    saveSettingsWithConflicts: async (
+      changes: Partial<import("../lib/booking/types").BookingSettings>,
+    ) => {
+      const settings = { ...(await original.getBookingSettings()), ...changes };
+      await original.saveBookingSettings(
+        settings,
+        Object.keys(changes) as (keyof typeof settings)[],
+      );
+      return { settings, conflicts: [], saved: true };
+    },
+  };
+});
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import {
   saveAdminSettingsAction,
