@@ -53,7 +53,7 @@ they silently block nothing.
 where `slot.startsAt < booked.endsAt && booked.startsAt < slot.endsAt`.
 
 In `lib/booking/repository.ts`, replace `getTakenSlotIdsForDate` with
-`getBookedRangesForDate(date, timezone)` queries bookings with `endsAt > dayStart`, then keeps confirmed bookings with `startsAt < dayEnd`. The local day bounds are converted to UTC. This includes appointments starting before midnight, even legacy appointments longer than the current slot-duration limit. Booking documents are the only availability source of truth; legacy slot documents are ignored.
+`getBookedRangesForDate(date, timezone)` queries bookings with `endsAt > dayStart`, with `status == confirmed` and `startsAt < dayEnd`. The local day bounds are converted to UTC. This includes appointments starting before midnight, even legacy appointments longer than the current slot-duration limit. Booking documents are the only availability source of truth; legacy slot documents are ignored.
 
 ### Double-booking guard
 
@@ -78,7 +78,11 @@ Fix: give every booking transaction **shared UTC day documents to contend on**, 
       const overlapping = await tx.get(
         db
           .collection("bookings")
-          .where("endsAt", ">", Timestamp.fromDate(match.startsAt)),
+          .where("status", "==", "confirmed")
+          .where("endsAt", ">", Timestamp.fromDate(match.startsAt))
+          .where("startsAt", "<", Timestamp.fromDate(match.endsAt))
+          .orderBy("endsAt")
+          .orderBy("startsAt"),
       );
       // reject confirmed bookings with startsAt < match.endsAt
       ```
@@ -192,8 +196,8 @@ Manual:
 
 Availability uses actual booked ranges, and transactions recheck settings, overrides, and overlaps. Legacy slot documents are ignored. Shared UTC day locks serialize concurrent overlapping requests across timezone changes. Tests cover changed grids, adjacent bookings, concurrent requests, stale legacy slots, and legacy long appointments crossing days. Blocked-grid validation and upcoming-booking notices remain pending in later PRs.
 
-Verified for this PR: 12 unit tests and six guarded Firestore emulator tests, TypeScript, lint, and formatting. No production settings, bookings, or emails were changed. Real browser checks remain unchecked.
+Verified for this PR: 13 unit tests and seven guarded Firestore emulator tests, TypeScript, lint, and formatting. No production settings, bookings, or emails were changed. Real browser checks remain unchecked.
 
 ### PR #16 review follow-up
 
-Overlap queries use end-time bounds and filter the other boundary in memory. This uses a single-field index but reads future bookings; revisit indexing if booking volume grows. Booking resets also clear `bookingDays`. The checklist leaves blocked-grid validation, upcoming-booking notices, and the related guide updates pending in later stack PRs.
+Overlap queries apply confirmed status and both interval bounds in Firestore. Deploy the composite index from `firestore.indexes.json` and wait for it to be ready before production rollout. Past requests are rejected before overlap queries. Booking resets also clear `bookingDays`. The checklist leaves blocked-grid validation, upcoming-booking notices, and the related guide updates pending in later stack PRs.

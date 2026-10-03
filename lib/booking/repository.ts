@@ -278,12 +278,14 @@ async function getBookedRangesForDate(
     .toISOString()
     .slice(0, 10);
   const dayEnd = fromZonedTime(`${nextDate}T00:00:00`, timezone);
-  // End-time queries include legacy bookings of any duration, even those
-  // starting days before this date. Filter the other boundary in memory so
-  // this remains a single-field query without a new composite index.
+
   const snap = await getAdminDb()
     .collection(COLLECTIONS.bookings)
+    .where("status", "==", "confirmed")
     .where("endsAt", ">", Timestamp.fromDate(dayStart))
+    .where("startsAt", "<", Timestamp.fromDate(dayEnd))
+    .orderBy("endsAt")
+    .orderBy("startsAt")
     .get();
   return snap.docs
     .map(bookingFromDoc)
@@ -366,7 +368,7 @@ export async function createBooking(
     const match = generateDaySlots(date, settings, override).find(
       (slot) => +slot.startsAt === +input.startsAt,
     );
-    if (!match)
+    if (!match || match.startsAt <= new Date())
       throw new BookingError(
         "That time slot is no longer available.",
         "SLOT_UNAVAILABLE",
@@ -379,7 +381,11 @@ export async function createBooking(
     const candidates = await tx.get(
       db
         .collection(COLLECTIONS.bookings)
-        .where("endsAt", ">", Timestamp.fromDate(match.startsAt)),
+        .where("status", "==", "confirmed")
+        .where("endsAt", ">", Timestamp.fromDate(match.startsAt))
+        .where("startsAt", "<", Timestamp.fromDate(match.endsAt))
+        .orderBy("endsAt")
+        .orderBy("startsAt"),
     );
     const bookedRanges = candidates.docs
       .map(bookingFromDoc)

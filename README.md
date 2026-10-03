@@ -50,3 +50,7 @@ The suite rejects remote hosts and real project IDs before connecting.
 GitHub Actions runs **Unit tests** and **Code quality** on every pull request, on pushes to `main`, and for merge queues. Unit tests run without production credentials; the separate opt-in Firestore emulator suite is excluded. Any unit test failure fails the check.
 
 To enforce passing tests before merge, configure a rule for `main` that requires the **Unit tests** status check, requires the branch to be up to date, and does not allow bypasses. Branch protection for a private personal repository requires GitHub Pro. Until that is enabled, these checks report failures but GitHub cannot enforce them as merge requirements.
+
+## Booking overlap index rollout
+
+Before deploying PR #16, deploy `firestore.indexes.json` to the intended Firebase project using `firebase deploy --only firestore:indexes --project <project-id>`, then wait until the bookings index is ready. It covers `status`, `endsAt`, and `startsAt` for bounded overlap queries. Verify the project explicitly; the index has not been deployed to production by this change. The local emulator does not enforce composite-index availability.
