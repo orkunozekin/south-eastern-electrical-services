@@ -1,3 +1,4 @@
+import { Timestamp } from "firebase-admin/firestore";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Booking } from "../lib/booking/types";
 vi.mock("../lib/booking/repository", () => ({
@@ -168,4 +169,14 @@ describe("cancel then notify", () => {
     ).toMatchObject({ notice: "skipped" });
     expect(sendCustomerCancellation).not.toHaveBeenCalled();
   });
+});
+
+it("checks the override version before sending a cancellation notice", async () => {
+  const overrideGuard = { date: "2099-10-05", version: Timestamp.now() };
+  vi.mocked(cancelBooking).mockRejectedValue(new Error("Availability changed"));
+  await expect(
+    cancelAndNotify("test", { notifyCustomer: true, overrideGuard }),
+  ).rejects.toThrow("Availability changed");
+  expect(cancelBooking).toHaveBeenCalledWith("test", overrideGuard);
+  expect(sendCustomerCancellation).not.toHaveBeenCalled();
 });

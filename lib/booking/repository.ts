@@ -22,6 +22,9 @@ import {
   bookingLockDates,
   MAX_SLOT_MINUTES,
   rangesOverlap,
+  isBookingWithinAvailability,
+  bookingAvailabilityDates,
+  isDateWithinBookingWindow,
 } from "./slots";
 import type {
   AvailabilityOverride,
@@ -210,24 +213,82 @@ export async function saveBookingSettings(
     );
 }
 
-export async function getAvailabilityOverride(
-  date: string,
-): Promise<AvailabilityOverride | null> {
-  if (!isValidDateString(date)) {
-    throw new BookingError(`Invalid date: ${date}`, "INVALID_DATE");
-  }
+/** Validate and save against the same snapshot used by booking transactions. */
+export async function saveSettingsWithConflicts(
+  changes: Partial<BookingSettings>,
+  keepConflicts = false,
+): Promise<{
+  settings: BookingSettings;
+  conflicts: Booking[];
+  saved: boolean;
+}> {
+  const db = getAdminDb();
+  const settingsRef = db
+    .collection(COLLECTIONS.settings)
+    .doc(SETTINGS_BOOKING_DOC);
+  return db.runTransaction(async (tx) => {
+    const current = await tx.get(settingsRef);
+    const settings = { ...mergeSettings(current.data()), ...changes };
+    const snap = await tx.get(
+      db
+        .collection(COLLECTIONS.bookings)
+        .where("endsAt", ">", Timestamp.now())
+        .orderBy("endsAt"),
+    );
+    const bookings = snap.docs
+      .map(bookingFromDoc)
+      .filter((b) => b.status === "confirmed");
+    const overrides = new Map<string, AvailabilityOverride | null>();
+    for (const booking of bookings) {
+      for (const date of bookingAvailabilityDates(booking, settings.timezone)) {
+        if (!overrides.has(date)) {
+          const override = await tx.get(
+            db.collection(COLLECTIONS.availabilityOverrides).doc(date),
+          );
+          overrides.set(date, overrideFromData(date, override.data()));
+        }
+      }
+    }
+    const conflicts = bookings.filter(
+      (b) => !isBookingWithinAvailability(b, settings, overrides),
+    );
+    const saved = keepConflicts || conflicts.length === 0;
+    if (saved)
+      tx.set(
+        settingsRef,
+        { ...changes, updatedAt: FieldValue.serverTimestamp() },
+        { merge: true },
+      );
+    return { settings, conflicts, saved };
+  });
+}
 
+export async function getAvailabilityOverrideSnapshot(date: string): Promise<{
+  override: AvailabilityOverride | null;
+  version: Timestamp | null;
+}> {
+  if (!isValidDateString(date))
+    throw new BookingError(`Invalid date: ${date}`, "INVALID_DATE");
   const snap = await getAdminDb()
     .collection(COLLECTIONS.availabilityOverrides)
     .doc(date)
     .get();
+  return {
+    override: overrideFromData(date, snap.data()),
+    version: snap.updateTime ?? null,
+  };
+}
 
-  return overrideFromData(date, snap.data());
+export async function getAvailabilityOverride(
+  date: string,
+): Promise<AvailabilityOverride | null> {
+  return (await getAvailabilityOverrideSnapshot(date)).override;
 }
 
 export async function saveAvailabilityOverride(
   override: AvailabilityOverride,
-): Promise<void> {
+  expected?: { version: Timestamp | null },
+): Promise<Timestamp> {
   if (!isValidDateString(override.date)) {
     throw new BookingError(`Invalid date: ${override.date}`, "INVALID_DATE");
   }
@@ -244,10 +305,30 @@ export async function saveAvailabilityOverride(
     payload.blockedSlots = override.blockedSlots;
   }
 
-  await getAdminDb()
+  const ref = getAdminDb()
     .collection(COLLECTIONS.availabilityOverrides)
-    .doc(override.date)
-    .set(payload, { merge: true });
+    .doc(override.date);
+  try {
+    const result = expected
+      ? expected.version
+        ? await ref.update(payload, { lastUpdateTime: expected.version })
+        : await ref.create(payload)
+      : await ref.set(payload, { merge: true });
+    return result.writeTime;
+  } catch (error) {
+    if (
+      expected &&
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      [5, 6, 9].includes(Number(error.code))
+    )
+      throw new BookingError(
+        "Availability changed while saving. Refresh and review the affected bookings.",
+        "VALIDATION",
+      );
+    throw error;
+  }
 }
 
 export async function deleteAvailabilityOverride(date: string): Promise<void> {
@@ -313,11 +394,52 @@ export async function listAvailableSlots(date: string): Promise<Slot[]> {
   if (!isValidDateString(date))
     throw new BookingError(`Invalid date: ${date}`, "INVALID_DATE");
   const settings = await getBookingSettings();
+  if (!isDateWithinBookingWindow(date, settings)) return [];
   const [override, bookedRanges] = await Promise.all([
     getAvailabilityOverride(date),
     getBookedRangesForDate(date, settings.timezone),
   ]);
   return getAvailableSlots({ date, settings, override, bookedRanges });
+}
+
+export async function findConflictingBookings(input: {
+  settings: BookingSettings;
+  overrides: Map<string, AvailabilityOverride | null>;
+  from?: Date;
+  to?: Date;
+}): Promise<Booking[]> {
+  const from = input.from ?? new Date();
+  const snap = await getAdminDb()
+    .collection(COLLECTIONS.bookings)
+    .where("status", "==", "confirmed")
+    .where("endsAt", ">", Timestamp.fromDate(from))
+    .where(
+      "startsAt",
+      "<",
+      Timestamp.fromDate(input.to ?? new Date("9999-12-31T00:00Z")),
+    )
+    .orderBy("endsAt")
+    .orderBy("startsAt")
+    .get();
+  const bookings = snap.docs.map(bookingFromDoc);
+  const overrides = new Map(input.overrides);
+  const dates = [
+    ...new Set(
+      bookings.flatMap((b) =>
+        bookingAvailabilityDates(b, input.settings.timezone),
+      ),
+    ),
+  ];
+  await Promise.all(
+    dates
+      .filter((date) => !overrides.has(date))
+      .map(async (date) => {
+        overrides.set(date, await getAvailabilityOverride(date));
+      }),
+  );
+  return bookings.filter(
+    (b) => !isBookingWithinAvailability(b, input.settings, overrides),
+  );
 }
 
 export async function listBookings(options?: {
@@ -432,6 +554,13 @@ export async function createBooking(
     };
     const { id: _id, ...data } = booking;
     void _id;
+    // Settings saves read this document, so a booking committed during their
+    // conflict check forces a retry with the newly committed booking included.
+    tx.set(
+      db.collection(COLLECTIONS.settings).doc(SETTINGS_BOOKING_DOC),
+      { bookingRevision: FieldValue.increment(1) },
+      { merge: true },
+    );
     tx.set(bookingRef, {
       ...data,
       startsAt: Timestamp.fromDate(match.startsAt),
@@ -448,8 +577,11 @@ export async function createBooking(
   });
 }
 
+export type OverrideCancellationGuard = { date: string; version: Timestamp };
+
 export async function cancelBooking(
   id: string,
+  overrideGuard?: OverrideCancellationGuard,
 ): Promise<{ booking: Booking; changed: boolean }> {
   const ref = getAdminDb().collection(COLLECTIONS.bookings).doc(id);
   return getAdminDb().runTransaction(async (tx) => {
@@ -457,6 +589,18 @@ export async function cancelBooking(
     if (!snap.exists) throw new BookingError("Booking not found.", "NOT_FOUND");
     const booking = bookingFromDoc(snap as QueryDocumentSnapshot);
     if (booking.status === "cancelled") return { booking, changed: false };
+    if (overrideGuard) {
+      const override = await tx.get(
+        getAdminDb()
+          .collection(COLLECTIONS.availabilityOverrides)
+          .doc(overrideGuard.date),
+      );
+      if (!override.updateTime?.isEqual(overrideGuard.version))
+        throw new BookingError(
+          "Availability changed while cancelling. Refresh and review the affected bookings.",
+          "VALIDATION",
+        );
+    }
     const cancelledAt = Timestamp.now();
     tx.update(ref, {
       status: "cancelled",
