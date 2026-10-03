@@ -41,10 +41,11 @@ function toErrorMessage(error: unknown): string {
   if (error instanceof Error && error.name === "BookingError") {
     return toUserFacingError(error.message);
   }
+  // Keep infrastructure failures observable even when visitors get a safe message.
+  console.error("[booking]", error);
   if (error instanceof Error && /firebase/i.test(error.message)) {
     return UNAVAILABLE;
   }
-  console.error("[booking]", error);
   return "Something went wrong. Please try again.";
 }
 
@@ -56,6 +57,12 @@ function isValidTimezone(value: unknown): value is string {
   } catch {
     return false;
   }
+}
+
+function bookingConfigured(): boolean {
+  if (isFirebaseAdminConfigured()) return true;
+  console.error("[booking] Firebase Admin credentials are missing.");
+  return false;
 }
 
 async function loadBookingServer() {
@@ -72,7 +79,7 @@ export async function fetchBookingCalendarAction(): Promise<
     }
   | { ok: false; error: string }
 > {
-  if (!isFirebaseAdminConfigured()) {
+  if (!bookingConfigured()) {
     return { ok: false, error: UNAVAILABLE };
   }
 
@@ -121,7 +128,7 @@ export async function fetchSlotsAction(
     return { ok: false, error: "Invalid date." };
   }
 
-  if (!isFirebaseAdminConfigured()) {
+  if (!bookingConfigured()) {
     return { ok: false, error: UNAVAILABLE };
   }
 
@@ -168,7 +175,7 @@ export async function submitBookingAction(input: {
   /** Visitor's IANA timezone, used for the time shown in their invite email. */
   timezone?: string;
 }): Promise<{ ok: true; booking: BookingDto } | { ok: false; error: string }> {
-  if (!isFirebaseAdminConfigured()) {
+  if (!bookingConfigured()) {
     return { ok: false, error: UNAVAILABLE };
   }
 

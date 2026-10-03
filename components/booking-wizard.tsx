@@ -11,7 +11,7 @@ import {
   type SlotDto,
 } from "@/app/actions/booking";
 import { firstCalendarSelection } from "@/lib/booking/calendar-selection";
-import { bookingCalendarWeeks } from "@/lib/booking";
+import { bookingCalendarWeeks, DEFAULT_BOOKING_SETTINGS } from "@/lib/booking";
 import {
   formatInZone,
   formatWithShortZone,
@@ -59,10 +59,10 @@ export function BookingWizard({
   const [calendar, setCalendar] = useState(() => ({
     dates: initialDates,
     timezone: initialTimezone,
-    bookingWindowDays: 14,
+    bookingWindowDays: DEFAULT_BOOKING_SETTINGS.bookingWindowDays,
     weeks: bookingCalendarWeeks({
       timezone: initialTimezone,
-      bookingWindowDays: 14,
+      bookingWindowDays: DEFAULT_BOOKING_SETTINGS.bookingWindowDays,
     }),
   }));
   const [calendarLoaded, setCalendarLoaded] = useState(!configured);

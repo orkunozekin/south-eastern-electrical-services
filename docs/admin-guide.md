@@ -510,8 +510,8 @@ invite for the new time. Cancelling the old callback with **Email the customer**
 
 ## 9. Good to know
 
-- **You control the booking window.** The default is 14 calendar days including today, adjustable from 1 to 90 in Settings.
-- **You control minimum notice.** Choose how far in advance a callback must be booked. The server enforces it even for a customer with an old page open.
+- **You control the booking window.** The default is 21 calendar days including today, adjustable from 1 to 90 in Settings. The default offers 15 weekdays before closures. Closed days count toward the window. Longer windows have week navigation.
+- **You control minimum notice.** Choose how far in advance a callback must be booked. The server enforces it even for a customer with an old page open. The default is zero until you choose a value. Slots exactly on the notice boundary are also excluded. Existing bookings keep their original times.
 
 - **Customers can't cancel or change bookings themselves.** They'll need to
   contact you, and you can cancel from the Bookings page.
