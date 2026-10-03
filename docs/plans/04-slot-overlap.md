@@ -53,22 +53,7 @@ they silently block nothing.
 where `slot.startsAt < booked.endsAt && booked.startsAt < slot.endsAt`.
 
 In `lib/booking/repository.ts`, replace `getTakenSlotIdsForDate` with
-`getBookedRangesForDate(date, timezone)`. It queries `bookings` whose
-`startsAt` is in `[dayStart − MAX_SLOT_MINUTES, dayEnd)`, where `dayStart` and
-`dayEnd` are that local day's bounds converted to UTC with `fromZonedTime`. It
-keeps only `status == "confirmed"` bookings whose `endsAt > dayStart`.
-Querying bookings instead of `slots` makes the booking documents the **only**
-source of truth. The `slots` collection is no longer read or written (see
-below).
-
-The lookback of `MAX_SLOT_MINUTES` (120, the highest slot length Settings
-allows) matters after a **timezone change**. A booking made under the old
-timezone can start before midnight in the new one and end after it, for
-example a late-evening Pacific booking viewed in Eastern. A query limited to
-bookings that _start_ on the requested date would miss it, and would offer a
-slot early the next day that overlaps its end. With the lookback, that booking
-is included and the overlapping slot is hidden. So the customer is never shown
-a time that the booking transaction would then reject.
+`getBookedRangesForDate(date, timezone)` queries bookings with `endsAt > dayStart`, then keeps confirmed bookings with `startsAt < dayEnd`. The local day bounds are converted to UTC. This includes appointments starting before midnight, even legacy appointments longer than the current slot-duration limit. Booking documents are the only availability source of truth; legacy slot documents are ignored.
 
 ### Double-booking guard
 
@@ -81,12 +66,9 @@ If two overlapping requests run at the same moment, each query can see no
 existing booking, and the two transactions write different documents, so
 neither conflicts with the other. Both would commit.
 
-Fix: give every booking transaction **one shared document to contend on per
-business day**, then check for overlaps while holding it.
+Fix: give every booking transaction **shared UTC day documents to contend on**, then check for overlaps while holding it.
 
-1. **Day lock document:** `bookingDays/{yyyy-MM-dd}`, keyed by the booking's
-   start date in the business timezone (the same date prefix `slotIdForStart`
-   already uses).
+1. **Day lock documents:** `bookingDays/{yyyy-MM-dd}`, keyed by each UTC date crossed by the appointment. UTC keys stay consistent when the business timezone changes.
 2. In the `createBooking` transaction, in this order:
    1. `tx.get(dayRef)`. The document may not exist yet; Firestore still tracks
       the read.
@@ -96,19 +78,12 @@ business day**, then check for overlaps while holding it.
       const overlapping = await tx.get(
         db
           .collection("bookings")
-          .where(
-            "startsAt",
-            ">=",
-            Timestamp.fromDate(subMinutes(match.startsAt, MAX_SLOT_MINUTES)),
-          )
-          .where("startsAt", "<", Timestamp.fromDate(match.endsAt)),
+          .where("endsAt", ">", Timestamp.fromDate(match.startsAt)),
       );
-      // reject if any doc has status "confirmed" and endsAt > match.startsAt
+      // reject confirmed bookings with startsAt < match.endsAt
       ```
 
-      `MAX_SLOT_MINUTES` is 120, the highest slot length Settings allows. That
-      bounds how early an overlapping booking can start, so the query doesn't
-      depend on day boundaries.
+      The query makes no assumption about historical booking duration.
 
    3. Write the booking and
       `tx.set(dayRef, { lastBookingAt: now, count: FieldValue.increment(1) }, { merge: true })`.
@@ -165,16 +140,16 @@ preview covers any that end up outside availability.
 ## Implementation steps
 
 - [x] `getAvailableSlots` takes booked ranges and filters by overlap
-- [x] `getBookedRangesForDate` replaces `getTakenSlotIdsForDate`, with the
-      `MAX_SLOT_MINUTES` lookback before the day's start
+- [x] `getBookedRangesForDate` replaces `getTakenSlotIdsForDate`, using end-time bounds
+      to include legacy bookings of any duration
 - [x] Remove the `slots/{slotId}` read and write from `createBooking`, and the
       `slots` write from `cancelBooking`
 - [x] `createBooking` transaction: read and write a `bookingDays/{date}` lock
       document, then run the overlapping-bookings query before writing
-- [x] `saveOverrideAction`: validate blocked slots against the generated grid
-- [x] Settings: notice when upcoming bookings exist and slot length changes
+- [ ] `saveOverrideAction`: validate blocked slots against the generated grid
+- [ ] Settings: notice when upcoming bookings exist and slot length changes
 - [x] Unit tests for overlap filtering (if Vitest is added)
-- [x] Update `docs/admin-guide.md`: soften the §6.2 warning; replace the §5.2
+- [ ] Update `docs/admin-guide.md`: soften the §6.2 warning; replace the §5.2
       "nothing gets blocked" gotcha and the troubleshooting row with the new
       validation error
 
@@ -215,6 +190,10 @@ Manual:
 
 ## Implementation handoff
 
-Availability uses actual booked ranges and booking transactions recheck settings, overrides, notice/window limits and overlaps. Legacy slots are no longer read or written. Shared lock documents use UTC dates (both dates for appointments crossing UTC midnight) rather than business-local dates, so locks remain consistent during timezone changes. Emulator tests confirm one concurrent overlapping booking succeeds and reproduce the original bug with the old slot-ID-only transaction. The emulator also rejected an overlap with transactional range reads and no day writes; the explicit shared locks are retained as a conservative guarantee. Blocked starts are validated when saving.
+Availability uses actual booked ranges, and transactions recheck settings, overrides, and overlaps. Legacy slot documents are ignored. Shared UTC day locks serialize concurrent overlapping requests across timezone changes. Tests cover changed grids, adjacent bookings, concurrent requests, stale legacy slots, and legacy long appointments crossing days. Blocked-grid validation and upcoming-booking notices remain pending in later PRs.
 
-Verified locally: 44 unit tests and 12 guarded Firestore emulator tests, TypeScript, lint, formatting, and production build. No production settings, bookings, or emails were changed. Original manual checklists above remain unchecked where real provider/client testing has not been performed.
+Verified for this PR: 12 unit tests and six guarded Firestore emulator tests, TypeScript, lint, and formatting. No production settings, bookings, or emails were changed. Real browser checks remain unchecked.
+
+### PR #16 review follow-up
+
+Overlap queries use end-time bounds and filter the other boundary in memory. This uses a single-field index but reads future bookings; revisit indexing if booking volume grows. Booking resets also clear `bookingDays`. The checklist leaves blocked-grid validation, upcoming-booking notices, and the related guide updates pending in later stack PRs.

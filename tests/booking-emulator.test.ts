@@ -9,7 +9,11 @@ import {
   vi,
 } from "vitest";
 import { initializeApp, deleteApp, type App } from "firebase-admin/app";
-import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import {
+  getFirestore,
+  Timestamp,
+  type Firestore,
+} from "firebase-admin/firestore";
 import { DEFAULT_BOOKING_SETTINGS } from "../lib/booking/defaults";
 vi.mock("../lib/auth/session", () => ({
   requireAdmin: vi.fn(async () => ({ uid: "emulator-admin" })),
@@ -90,6 +94,40 @@ describe.skipIf(!enabled)(
     afterAll(async () => {
       await db.terminate();
       await deleteApp(app);
+    });
+    it("blocks legacy long bookings starting before the day and allows adjacent slots", async () => {
+      await db
+        .collection("bookings")
+        .doc("legacy-long")
+        .set({
+          name: "Legacy customer",
+          phone: "5551234567",
+          startsAt: Timestamp.fromDate(
+            new Date(+startsAt("09:00") - 24 * 3600000),
+          ),
+          endsAt: Timestamp.fromDate(startsAt("10:00")),
+          createdAt: Timestamp.now(),
+          status: "confirmed",
+          slotId: "legacy",
+        });
+      expect(
+        (await repo.listAvailableSlots(tomorrow)).map((s) =>
+          s.startsAt.toISOString(),
+        ),
+      ).not.toContain(startsAt("09:00").toISOString());
+      await expect(repo.createBooking(input("09:00"))).rejects.toMatchObject({
+        code: "SLOT_UNAVAILABLE",
+      });
+      await expect(repo.createBooking(input("10:00"))).resolves.toMatchObject({
+        status: "confirmed",
+      });
+      await db
+        .collection("bookings")
+        .doc("legacy-long")
+        .update({ status: "cancelled" });
+      await expect(repo.createBooking(input("09:00"))).resolves.toMatchObject({
+        status: "confirmed",
+      });
     });
     it("only confirms one concurrent request for the same slot", async () => {
       const results = await Promise.allSettled(

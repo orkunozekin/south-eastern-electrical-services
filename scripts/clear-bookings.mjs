@@ -1,5 +1,5 @@
 /**
- * Clears all Firestore booking + slot docs. Customers are NOT notified.
+ * Clears all Firestore booking, slot, and day-lock docs. Customers are NOT notified.
  *
  * Usage (from project root):
  *   node --env-file=.env.local scripts/clear-bookings.mjs        # dry run
@@ -60,10 +60,13 @@ if (upcoming.length > 0) {
 }
 
 if (!process.argv.includes("--yes")) {
-  console.log("Dry run. Re-run with --yes to delete all bookings and slots.");
+  console.log(
+    "Dry run. Re-run with --yes to delete all bookings, slots, and day locks.",
+  );
   process.exit(0);
 }
 
 await deleteCollection("bookings");
 await deleteCollection("slots");
-console.log("All bookings and occupied slots cleared.");
+await deleteCollection("bookingDays");
+console.log("All bookings, occupied slots, and day locks cleared.");

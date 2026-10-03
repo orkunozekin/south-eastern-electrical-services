@@ -5,7 +5,7 @@ import {
   type Query,
   type QueryDocumentSnapshot,
 } from "firebase-admin/firestore";
-import { addDays, subMinutes } from "date-fns";
+import { addDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 
 import { buildInviteUid } from "@/lib/calendar-invite";
@@ -278,13 +278,18 @@ async function getBookedRangesForDate(
     .toISOString()
     .slice(0, 10);
   const dayEnd = fromZonedTime(`${nextDate}T00:00:00`, timezone);
-  return (
-    await listBookings({
-      from: subMinutes(dayStart, MAX_SLOT_MINUTES),
-      to: dayEnd,
-      status: "confirmed",
-    })
-  ).filter((booking) => booking.endsAt > dayStart);
+  // End-time queries include legacy bookings of any duration, even those
+  // starting days before this date. Filter the other boundary in memory so
+  // this remains a single-field query without a new composite index.
+  const snap = await getAdminDb()
+    .collection(COLLECTIONS.bookings)
+    .where("endsAt", ">", Timestamp.fromDate(dayStart))
+    .get();
+  return snap.docs
+    .map(bookingFromDoc)
+    .filter(
+      (booking) => booking.status === "confirmed" && booking.startsAt < dayEnd,
+    );
 }
 
 export async function listAvailableSlots(date: string): Promise<Slot[]> {
@@ -374,12 +379,7 @@ export async function createBooking(
     const candidates = await tx.get(
       db
         .collection(COLLECTIONS.bookings)
-        .where(
-          "startsAt",
-          ">=",
-          Timestamp.fromDate(subMinutes(match.startsAt, MAX_SLOT_MINUTES)),
-        )
-        .where("startsAt", "<", Timestamp.fromDate(match.endsAt)),
+        .where("endsAt", ">", Timestamp.fromDate(match.startsAt)),
     );
     const bookedRanges = candidates.docs
       .map(bookingFromDoc)
