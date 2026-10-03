@@ -176,16 +176,117 @@ export function isDateWithinBookingWindow(
   );
 }
 
+/** Local dates touched by a half-open appointment interval. */
+export function bookingAvailabilityDates(
+  booking: { startsAt: Date; endsAt: Date },
+  timezone: string,
+): string[] {
+  if (booking.endsAt <= booking.startsAt) return [];
+  const first = formatInTimeZone(booking.startsAt, timezone, "yyyy-MM-dd");
+  const last = formatInTimeZone(
+    new Date(+booking.endsAt - 1),
+    timezone,
+    "yyyy-MM-dd",
+  );
+  const dates: string[] = [];
+  for (
+    let date = first;
+    date <= last;
+    date = addDays(new Date(`${date}T12:00Z`), 1)
+      .toISOString()
+      .slice(0, 10)
+  )
+    dates.push(date);
+  return dates;
+}
+
 export function isBookingWithinAvailability(
   booking: { startsAt: Date; endsAt: Date },
   settings: BookingSettings,
+  overrides:
+    AvailabilityOverride | null | Map<string, AvailabilityOverride | null>,
+): boolean {
+  const dates = bookingAvailabilityDates(booking, settings.timezone);
+  if (!dates.length) return false;
+  return dates.every((date) => {
+    const override =
+      overrides instanceof Map
+        ? (overrides.get(date) ?? null)
+        : overrides?.date === date
+          ? overrides
+          : null;
+    const nextDate = addDays(new Date(`${date}T12:00Z`), 1)
+      .toISOString()
+      .slice(0, 10);
+    const portion = {
+      startsAt: new Date(
+        Math.max(
+          +booking.startsAt,
+          +fromZonedTime(`${date}T00:00`, settings.timezone),
+        ),
+      ),
+      endsAt: new Date(
+        Math.min(
+          +booking.endsAt,
+          +fromZonedTime(`${nextDate}T00:00`, settings.timezone),
+        ),
+      ),
+    };
+    return isBookingPortionWithinAvailability(
+      portion,
+      date,
+      settings,
+      override,
+    );
+  });
+}
+
+/** Whether an edit removes any previously open portion of this appointment. */
+export function isBookingAffectedByOverride(
+  booking: { startsAt: Date; endsAt: Date },
+  settings: BookingSettings,
+  previous: AvailabilityOverride | null,
+  proposal: AvailabilityOverride,
+): boolean {
+  const date = proposal.date;
+  const points = [booking.startsAt, booking.endsAt];
+  for (const override of [previous, proposal]) {
+    for (const range of resolveDayHours(date, settings, override))
+      points.push(
+        fromZonedTime(`${date}T${range.start}:00`, settings.timezone),
+        fromZonedTime(`${date}T${range.end}:00`, settings.timezone),
+      );
+    const blocked = new Set(override?.blockedSlots ?? []);
+    for (const slot of generateDaySlots(
+      date,
+      settings,
+      override ? { ...override, blockedSlots: [] } : null,
+    ))
+      if (
+        blocked.has(formatInTimeZone(slot.startsAt, settings.timezone, "HH:mm"))
+      )
+        points.push(slot.startsAt, slot.endsAt);
+  }
+  const ordered = [...new Set(points.map(Number))].sort((a, b) => a - b);
+  return ordered.slice(0, -1).some((start, index) => {
+    const portion = {
+      startsAt: new Date(Math.max(start, +booking.startsAt)),
+      endsAt: new Date(Math.min(ordered[index + 1], +booking.endsAt)),
+    };
+    return (
+      portion.startsAt < portion.endsAt &&
+      isBookingPortionWithinAvailability(portion, date, settings, previous) &&
+      !isBookingPortionWithinAvailability(portion, date, settings, proposal)
+    );
+  });
+}
+
+function isBookingPortionWithinAvailability(
+  booking: { startsAt: Date; endsAt: Date },
+  date: string,
+  settings: BookingSettings,
   override: AvailabilityOverride | null,
 ): boolean {
-  const date = formatInTimeZone(
-    booking.startsAt,
-    settings.timezone,
-    "yyyy-MM-dd",
-  );
   const ranges = resolveDayHours(date, settings, override)
     .map((range) => ({
       startsAt: fromZonedTime(`${date}T${range.start}:00`, settings.timezone),

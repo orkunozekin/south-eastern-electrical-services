@@ -3,9 +3,11 @@ import { DEFAULT_BOOKING_SETTINGS } from "../lib/booking/defaults";
 import {
   bookingCalendarWeeks,
   bookingLockDates,
+  bookingAvailabilityDates,
   getAvailableSlots,
   getBookableDateStrings,
   isBookingWithinAvailability,
+  isBookingAffectedByOverride,
 } from "../lib/booking/slots";
 import { mergeSettings } from "../lib/booking/repository";
 import {
@@ -276,4 +278,38 @@ it("ignores obsolete blocks after a duration change while retaining active block
       blockedSlots: ["09:45"],
     }),
   ).toBe(false);
+});
+
+it("enumerates every business-local date of a legacy interval, excluding its exact end", () => {
+  expect(
+    bookingAvailabilityDates(
+      {
+        startsAt: new Date("2026-10-05T22:00Z"),
+        endsAt: new Date("2026-10-07T00:00Z"),
+      },
+      "UTC",
+    ),
+  ).toEqual(["2026-10-05", "2026-10-06"]);
+  expect(
+    isBookingWithinAvailability(
+      range("09:00", "09:30"),
+      settings,
+      new Map([["2026-10-05", { date: "2026-10-05", closed: true }]]),
+    ),
+  ).toBe(false);
+});
+
+it("detects closing a date for a booking in the open tail of a changed grid", () => {
+  expect(
+    isBookingAffectedByOverride(
+      range("16:30", "17:00"),
+      {
+        ...settings,
+        slotDurationMinutes: 45,
+        weeklyHours: { 1: [{ start: "09:00", end: "17:00" }] },
+      },
+      null,
+      { date: "2026-10-05", closed: true },
+    ),
+  ).toBe(true);
 });

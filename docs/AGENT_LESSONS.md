@@ -72,3 +72,10 @@
 - **Gap:** Cancellations used a proposal after another admin could replace it; obsolete blocked starts also disagreed with public availability.
 - **Going forward:** Check the persisted override version inside the cancellation transaction before sending notices. Apply only blocked intervals whose starts exist on the current grid.
 - **Pointers:** `lib/booking/repository.ts`, `lib/booking/cancellation.ts`, `lib/booking/slots.ts`
+
+### 2026-10-03 — Validate action fields and whole legacy intervals
+
+- **Source:** PR #19 · Macroscope
+- **Gap:** Spreading action input persisted unsupported hours, and conflict checks loaded overrides only for an appointment's start date.
+- **Going forward:** Build action writes from explicitly allowed fields. Query intersecting intervals and load every business-local date touched by legacy appointments, using an exclusive end boundary.
+- **Pointers:** `app/actions/admin.ts`, `lib/booking/repository.ts`, `lib/booking/slots.ts`

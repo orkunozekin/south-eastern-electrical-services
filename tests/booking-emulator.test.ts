@@ -377,6 +377,50 @@ describe.skipIf(!enabled)(
         await repo.cancelBooking(booking.id, { date: tomorrow, version }),
       ).toMatchObject({ changed: true });
     });
+    it("ignores unvalidated extra override fields and preserves saved hours", async () => {
+      const hours = [{ start: "09:00", end: "12:00" }];
+      await repo.saveAvailabilityOverride({ date: tomorrow, hours });
+      const result = await actions.saveOverrideAction({
+        date: tomorrow,
+        closed: false,
+        blockedSlots: [],
+        conflictResolution: "keep",
+        hours: [{ start: "bogus", end: "broken" }],
+      } as Parameters<typeof actions.saveOverrideAction>[0]);
+      expect(result.ok).toBe(true);
+      expect((await repo.getAvailabilityOverride(tomorrow))?.hours).toEqual(
+        hours,
+      );
+      expect((await repo.listAvailableSlots(tomorrow)).length).toBeGreaterThan(
+        0,
+      );
+    });
+    it("includes legacy appointments starting before a closed or blocked date", async () => {
+      const nextDate = new Date(+startsAt("09:00") + 86400000)
+        .toISOString()
+        .slice(0, 10);
+      const booking = await repo.createBooking(input("09:00"));
+      await db
+        .collection("bookings")
+        .doc(booking.id)
+        .update({ endsAt: Timestamp.fromDate(new Date(`${nextDate}T10:00Z`)) });
+      const preview = await actions.previewOverrideAction({
+        date: nextDate,
+        closed: false,
+        blockedSlots: ["09:00"],
+      });
+      if (!preview.ok) throw new Error(preview.error);
+      expect(preview.conflicts.map((b) => b.id)).toEqual([booking.id]);
+      const result = await actions.saveOverrideAction({
+        date: nextDate,
+        closed: true,
+        blockedSlots: [],
+        conflictResolution: "cancel",
+      });
+      if (!result.ok) throw new Error(result.error);
+      expect(result.results.map((b) => b.id)).toEqual([booking.id]);
+      expect((await repo.getBooking(booking.id))?.status).toBe("cancelled");
+    });
     it("guards every admin preview and mutation and rejects invalid blocked starts", async () => {
       const result = await actions.previewOverrideAction({
         date: tomorrow,

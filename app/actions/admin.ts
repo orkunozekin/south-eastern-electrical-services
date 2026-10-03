@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import {
   generateDaySlots,
   isBookingWithinAvailability,
+  isBookingAffectedByOverride,
   isValidDateString,
   isValidTime,
   type AvailabilityOverride,
@@ -145,13 +146,7 @@ export async function getAdminBookingsAction(): Promise<
           settings,
           b.status === "confirmed" &&
             b.startsAt > new Date() &&
-            !isBookingWithinAvailability(
-              b,
-              settings,
-              byDate.get(
-                formatInTimeZone(b.startsAt, settings.timezone, "yyyy-MM-dd"),
-              ) ?? null,
-            ),
+            !isBookingWithinAvailability(b, settings, byDate),
         ),
       ),
     };
@@ -289,7 +284,8 @@ async function proposedOverride(
   const saved = await getAvailabilityOverride(input.date);
   const proposal = {
     ...saved,
-    ...input,
+    date: input.date,
+    closed: input.closed,
     blockedSlots: input.closed ? [] : [...new Set(input.blockedSlots)],
   };
   if (!input.closed) {
@@ -333,7 +329,7 @@ async function overrideConflicts(
     to: fromZonedTime(`${nextDate}T00:00:00`, settings.timezone),
   });
   return conflicts.filter((booking) =>
-    isBookingWithinAvailability(booking, settings, previous),
+    isBookingAffectedByOverride(booking, settings, previous, override),
   );
 }
 

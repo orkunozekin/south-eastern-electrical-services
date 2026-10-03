@@ -23,6 +23,7 @@ import {
   MAX_SLOT_MINUTES,
   rangesOverlap,
   isBookingWithinAvailability,
+  bookingAvailabilityDates,
   isDateWithinBookingWindow,
 } from "./slots";
 import type {
@@ -231,35 +232,25 @@ export async function saveSettingsWithConflicts(
     const snap = await tx.get(
       db
         .collection(COLLECTIONS.bookings)
-        .where("startsAt", ">=", Timestamp.now())
-        .orderBy("startsAt"),
+        .where("endsAt", ">", Timestamp.now())
+        .orderBy("endsAt"),
     );
     const bookings = snap.docs
       .map(bookingFromDoc)
       .filter((b) => b.status === "confirmed");
     const overrides = new Map<string, AvailabilityOverride | null>();
     for (const booking of bookings) {
-      const date = formatInTimeZone(
-        booking.startsAt,
-        settings.timezone,
-        "yyyy-MM-dd",
-      );
-      if (!overrides.has(date)) {
-        const override = await tx.get(
-          db.collection(COLLECTIONS.availabilityOverrides).doc(date),
-        );
-        overrides.set(date, overrideFromData(date, override.data()));
+      for (const date of bookingAvailabilityDates(booking, settings.timezone)) {
+        if (!overrides.has(date)) {
+          const override = await tx.get(
+            db.collection(COLLECTIONS.availabilityOverrides).doc(date),
+          );
+          overrides.set(date, overrideFromData(date, override.data()));
+        }
       }
     }
     const conflicts = bookings.filter(
-      (b) =>
-        !isBookingWithinAvailability(
-          b,
-          settings,
-          overrides.get(
-            formatInTimeZone(b.startsAt, settings.timezone, "yyyy-MM-dd"),
-          ) ?? null,
-        ),
+      (b) => !isBookingWithinAvailability(b, settings, overrides),
     );
     const saved = keepConflicts || conflicts.length === 0;
     if (saved)
@@ -390,16 +381,25 @@ export async function findConflictingBookings(input: {
   from?: Date;
   to?: Date;
 }): Promise<Booking[]> {
-  const bookings = await listBookings({
-    from: input.from ?? new Date(),
-    to: input.to,
-    status: "confirmed",
-  });
+  const from = input.from ?? new Date();
+  const snap = await getAdminDb()
+    .collection(COLLECTIONS.bookings)
+    .where("status", "==", "confirmed")
+    .where("endsAt", ">", Timestamp.fromDate(from))
+    .where(
+      "startsAt",
+      "<",
+      Timestamp.fromDate(input.to ?? new Date("9999-12-31T00:00Z")),
+    )
+    .orderBy("endsAt")
+    .orderBy("startsAt")
+    .get();
+  const bookings = snap.docs.map(bookingFromDoc);
   const overrides = new Map(input.overrides);
   const dates = [
     ...new Set(
-      bookings.map((b) =>
-        formatInTimeZone(b.startsAt, input.settings.timezone, "yyyy-MM-dd"),
+      bookings.flatMap((b) =>
+        bookingAvailabilityDates(b, input.settings.timezone),
       ),
     ),
   ];
@@ -411,14 +411,7 @@ export async function findConflictingBookings(input: {
       }),
   );
   return bookings.filter(
-    (b) =>
-      !isBookingWithinAvailability(
-        b,
-        input.settings,
-        overrides.get(
-          formatInTimeZone(b.startsAt, input.settings.timezone, "yyyy-MM-dd"),
-        ) ?? null,
-      ),
+    (b) => !isBookingWithinAvailability(b, input.settings, overrides),
   );
 }
 

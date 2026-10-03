@@ -6,8 +6,10 @@ export {
 } from "./defaults";
 export {
   bookingCalendarWeeks,
+  bookingAvailabilityDates,
   bookingWindowEnd,
   isBookingWithinAvailability,
+  isBookingAffectedByOverride,
   getAvailableSlots,
   generateDaySlots,
   getBookableDateStrings,
