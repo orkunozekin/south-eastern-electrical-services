@@ -86,3 +86,10 @@
 - **Gap:** Checking the newly saved version protected later cancellations, but not the baseline read before another admin's intervening edit.
 - **Going forward:** Read the baseline and its version together, then condition the save on that version (or document absence). Continue checking the resulting version during cancellation.
 - **Pointers:** `getAvailabilityOverrideSnapshot`, `saveAvailabilityOverride`, `app/actions/admin.ts`
+
+### 2026-10-03 — Log configuration guards as well as exceptions
+
+- **Source:** PR #22 · Greptile
+- **Gap:** Sanitized booking errors were logged only in the exception handler, leaving missing-credential early returns invisible.
+- **Going forward:** Check every failure exit when adding diagnostics, including configuration guards. Log the reason server-side without secret values and keep visitor responses sanitized.
+- **Pointers:** `app/actions/booking.ts`, `tests/booking-actions.test.ts`

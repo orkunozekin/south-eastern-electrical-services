@@ -59,6 +59,12 @@ function isValidTimezone(value: unknown): value is string {
   }
 }
 
+function bookingConfigured(): boolean {
+  if (isFirebaseAdminConfigured()) return true;
+  console.error("[booking] Firebase Admin credentials are missing.");
+  return false;
+}
+
 async function loadBookingServer() {
   return import("@/lib/booking/server");
 }
@@ -73,7 +79,7 @@ export async function fetchBookingCalendarAction(): Promise<
     }
   | { ok: false; error: string }
 > {
-  if (!isFirebaseAdminConfigured()) {
+  if (!bookingConfigured()) {
     return { ok: false, error: UNAVAILABLE };
   }
 
@@ -122,7 +128,7 @@ export async function fetchSlotsAction(
     return { ok: false, error: "Invalid date." };
   }
 
-  if (!isFirebaseAdminConfigured()) {
+  if (!bookingConfigured()) {
     return { ok: false, error: UNAVAILABLE };
   }
 
@@ -169,7 +175,7 @@ export async function submitBookingAction(input: {
   /** Visitor's IANA timezone, used for the time shown in their invite email. */
   timezone?: string;
 }): Promise<{ ok: true; booking: BookingDto } | { ok: false; error: string }> {
-  if (!isFirebaseAdminConfigured()) {
+  if (!bookingConfigured()) {
     return { ok: false, error: UNAVAILABLE };
   }
 

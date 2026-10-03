@@ -34,7 +34,7 @@ function available(duration: number, bookedRanges = [range("09:30", "10:00")]) {
   }).map((s) => s.startsAt.toISOString().slice(11, 16));
 }
 describe("booking availability", () => {
-  it("offers at least 14 weekdays by default throughout the week", () => {
+  it("offers exactly 15 weekdays by default throughout the week", () => {
     for (let day = 5; day <= 11; day++) {
       expect(
         getBookableDateStrings(
@@ -42,7 +42,7 @@ describe("booking availability", () => {
           undefined,
           new Date(`2026-10-${String(day).padStart(2, "0")}T12:00:00Z`),
         ).length,
-      ).toBeGreaterThanOrEqual(14);
+      ).toBe(15);
     }
   });
   it("excludes overlap after a longer grid replaces shorter slots", () =>
