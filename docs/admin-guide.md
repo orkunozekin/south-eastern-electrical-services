@@ -404,6 +404,8 @@ changing this.
 
 The email address(es) that receive a message whenever a customer books.
 
+At least one address is required to save Settings. Once you save an address, only the saved list receives business notifications. Until then, notifications use the setup address shown masked on the Settings page.
+
 - Put **one email address per line** (commas also work).
 - You can list as many addresses as you like, e.g. the owner and the office.
 - If an address is mistyped (for example, missing the `@`), you'll get an
@@ -412,6 +414,8 @@ The email address(es) that receive a message whenever a customer books.
 ---
 
 ## 7. Booking notification emails
+
+**First step:** add at least one business address in **Settings → Notify emails** and save. Until you do, notifications use the setup address shown masked on the Settings page.
 
 When a customer books, everyone on your **Notify emails** list is sent an
 email.
@@ -454,9 +458,7 @@ developer.
   "Not spam" so future ones land in your inbox.
 - **You're emailed when someone books, but not when you cancel.** The
   customer is emailed when you cancel (see below).
-- Your developer may also have set up an address behind the scenes that
-  always gets a copy. Removing addresses in Settings won't stop that one; ask
-  your developer if you want it changed.
+- Once you save notification addresses in Settings, only those addresses receive booking notifications. The setup address is used only while the saved list is empty.
 
 ### Emails customers receive
 
@@ -613,8 +615,7 @@ Get in touch for anything you can't do from the admin pages, including:
 - Opening on a day that's normally closed
 - Split hours on a regular basis (e.g. a daily lunch break)
 - Changing the booking window (currently about 2 weeks)
-- Changes to the email wording, sender name, or the behind-the-scenes copy
-  address
+- Changes to the email wording or sender name
 - Changes to the website's text, services list, photos, or pages
 - Any error message that keeps coming back
 - Anything that doesn't seem to be working the way this guide describes

@@ -160,7 +160,7 @@ export async function sendBookingNotification(
     if (logToConsole) return "logged";
 
     console.warn(
-      "[plunk] Skipping booking notification. Need PLUNK_API_KEY, PLUNK_FROM_EMAIL (verified domain), and BOOKING_NOTIFY_EMAIL.",
+      "[plunk] Skipping booking notification. Need PLUNK_API_KEY, PLUNK_FROM_EMAIL (verified domain), and a notification address in Settings (or the bootstrap env address).",
     );
     return "skipped";
   }
