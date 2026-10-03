@@ -37,3 +37,10 @@
 - **Gap:** Past requests and overlap queries could read unrelated future and cancelled records before filtering them out.
 - **Going forward:** Reject unavailable past starts before overlap reads; push status and both interval bounds into database queries, commit required indexes, and document index readiness as a rollout prerequisite. Emulator success does not prove production indexes exist.
 - **Pointers:** `lib/booking/repository.ts`, `firestore.indexes.json`, `tests/booking-query.test.ts`
+
+### 2026-10-02 — Keep calendar selection visible after loading
+
+- **Source:** PR #17 · Macroscope and Greptile
+- **Gap:** A fetched calendar selected its first offered date without updating the displayed week, and client guidance still assumed a fixed booking window.
+- **Going forward:** Apply date selection and its containing page together after calendar loads. Cover empty initial weeks and empty calendars, and update vacation guidance whenever booking horizons become configurable.
+- **Pointers:** `components/booking-wizard.tsx`, `lib/booking/calendar-selection.ts`, `docs/admin-guide.md`

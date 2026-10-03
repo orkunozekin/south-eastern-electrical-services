@@ -113,19 +113,19 @@ In `components/admin-settings-form.tsx` and `saveAdminSettingsAction`:
 
 ## Implementation steps
 
-- [ ] Types, defaults, `mergeSettings`, `saveBookingSettings`
-- [ ] `getAvailableSlots` notice filter
-- [ ] Window from settings in `fetchBookingCalendarAction` (plan 01)
-- [ ] Window check in `listAvailableSlots` (covers both `fetchSlotsAction`
+- [x] Types, defaults, `mergeSettings`, `saveBookingSettings`
+- [x] `getAvailableSlots` notice filter
+- [x] Window from settings in `fetchBookingCalendarAction` (plan 01)
+- [x] Window check in `listAvailableSlots` (covers both `fetchSlotsAction`
       and `createBooking`)
-- [ ] Settings form fields and action validation
-- [ ] Booking window control: quick picks, custom days input, "through
+- [x] Settings form fields and action validation
+- [x] Booking window control: quick picks, custom days input, "through
       <date>" help text, shrink note
-- [ ] Public calendar: week-at-a-time navigation when the window is over 21
+- [x] Public calendar: week-at-a-time navigation when the window is over 21
       days
-- [ ] Unit tests: notice boundary, window length (1, 14, 90; window spanning a
+- [x] Unit tests: notice boundary, window length (1, 14, 90; window spanning a
       daylight-saving change)
-- [ ] Update `docs/admin-guide.md`: new §6 subsections; §9 "customers can book
+- [x] Update `docs/admin-guide.md`: new §6 subsections; §9 "customers can book
       up to about 2 weeks ahead" and "no minimum notice"; §8 vacation recipe;
       remove "changing the booking window" from §11
 
@@ -145,3 +145,9 @@ In `components/admin-settings-form.tsx` and `saveAdminSettingsAction`:
       clear message
 - [ ] Existing settings doc without the new fields loads with defaults (14
       days, so nothing changes on deploy)
+
+## Implementation handoff
+
+Settings, server enforcement, quick picks, custom window help text, and week navigation are implemented and tested. Minimum notice defaults to 0, preserving live behaviour until the client chooses a value; the client-recommended 60-minute default was not silently enabled. Window counts today plus N−1 calendar days. DST-safe date enumeration and exact notice boundaries have unit coverage; direct out-of-window submissions are rejected in the emulator. Existing bookings remain unchanged when the window shrinks.
+
+Verified for this PR: 31 unit tests, TypeScript, lint, and formatting. The preceding CI input-type failure is fixed. Calendar selection regression tests cover an empty first week, retained week zero, and no offered dates. No production settings, bookings, or emails were changed. Original manual checklists above remain unchecked where real provider/client testing has not been performed.

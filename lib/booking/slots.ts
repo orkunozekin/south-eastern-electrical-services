@@ -109,7 +109,8 @@ export function getAvailableSlots(options: {
     now = new Date(),
   } = options;
   const booked = [...bookedRanges];
-  const earliest = now;
+  if (!isDateWithinBookingWindow(date, settings, now)) return [];
+  const earliest = addMinutes(now, settings.minNoticeMinutes);
 
   return generateDaySlots(date, settings, override).filter((slot) => {
     if (booked.some((booking) => rangesOverlap(slot, booking))) return false;
@@ -124,7 +125,7 @@ export function getAvailableSlots(options: {
  */
 export function getBookableDateStrings(
   settings: BookingSettings,
-  daysAhead = 14,
+  daysAhead = settings.bookingWindowDays,
   now = new Date(),
 ): string[] {
   const dates: string[] = [];
@@ -154,6 +155,27 @@ export function rangesOverlap(
   return a.startsAt < b.endsAt && b.startsAt < a.endsAt;
 }
 
+export function bookingWindowEnd(
+  settings: BookingSettings,
+  now = new Date(),
+): string {
+  const today = formatInTimeZone(now, settings.timezone, "yyyy-MM-dd");
+  return addDays(new Date(`${today}T12:00:00Z`), settings.bookingWindowDays - 1)
+    .toISOString()
+    .slice(0, 10);
+}
+
+export function isDateWithinBookingWindow(
+  date: string,
+  settings: BookingSettings,
+  now = new Date(),
+): boolean {
+  return (
+    date >= formatInTimeZone(now, settings.timezone, "yyyy-MM-dd") &&
+    date <= bookingWindowEnd(settings, now)
+  );
+}
+
 /** UTC day locks also serialize overlaps across a business timezone change. */
 export function bookingLockDates(startsAt: Date, endsAt: Date): string[] {
   return [
@@ -162,4 +184,20 @@ export function bookingLockDates(startsAt: Date, endsAt: Date): string[] {
       new Date(+endsAt - 1).toISOString().slice(0, 10),
     ]),
   ].sort();
+}
+
+/** Calendar weeks include closed days so navigation covers the full window. */
+export function bookingCalendarWeeks(
+  settings: Pick<BookingSettings, "timezone" | "bookingWindowDays">,
+  now = new Date(),
+): string[][] {
+  const today = formatInTimeZone(now, settings.timezone, "yyyy-MM-dd");
+  const start = new Date(`${today}T12:00:00Z`);
+  const weeks: string[][] = [];
+  for (let i = 0; i < settings.bookingWindowDays; i++) {
+    const day = addDays(start, i);
+    if (i === 0 || day.getUTCDay() === 1) weeks.push([]);
+    weeks[weeks.length - 1].push(day.toISOString().slice(0, 10));
+  }
+  return weeks;
 }

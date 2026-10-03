@@ -8,20 +8,23 @@ export const metadata: Metadata = {
   description: "Schedule a phone call with Southeastern Electrical Services.",
 };
 
-export default async function BookPage({ searchParams }: PageProps<"/book">) {
-  const { ref } = await searchParams;
-  const rescheduling = ref === "cancelled";
+export default async function BookPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string | string[] }>;
+}) {
+  const cancelled = (await searchParams).ref === "cancelled";
   const { dates, timezone, configured } = getBookingPageData();
 
   return (
     <section className="bg-navy px-5 pt-28 pb-20 md:px-8 md:pt-36 md:pb-28">
       <div className="mx-auto max-w-6xl">
         <h1 className="font-display text-4xl font-bold tracking-tight text-white uppercase md:text-6xl">
-          {rescheduling ? "Pick a new time" : "Book a callback"}
+          Book a callback
         </h1>
         <p className="text-mist/85 mt-4 max-w-lg text-lg leading-relaxed">
-          {rescheduling
-            ? "Sorry we had to cancel. Pick a new time below and we’ll call you then."
+          {cancelled
+            ? "Sorry we had to cancel. Pick a new time below."
             : "Pick a day and time. Leave your name and number. We’ll call you."}
         </p>
 
