@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
+import { useSyncExternalStore } from "react";
 import { getViewerTimezone } from "@/lib/timezone";
 
-/** Browser timezone after mount; `fallback` during SSR / first paint. */
+const subscribe = () => () => {};
+
+/** Browser timezone after hydration; business timezone on the server. */
 export function useViewerTimezone(fallback: string): string {
-  const [timezone, setTimezone] = useState(fallback);
-
-  useEffect(() => {
-    setTimezone(getViewerTimezone(fallback));
-  }, [fallback]);
-
-  return timezone;
+  return useSyncExternalStore(
+    subscribe,
+    () => getViewerTimezone(fallback),
+    () => fallback,
+  );
 }

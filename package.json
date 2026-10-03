@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:emulator": "RUN_FIRESTORE_TESTS=true vitest run tests/booking-emulator.test.ts"
   },
   "dependencies": {
     "date-fns": "^4.4.0",
@@ -33,7 +35,9 @@
     "prettier": "^3.9.5",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "jose": "4.15.9"

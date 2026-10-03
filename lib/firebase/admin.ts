@@ -7,6 +7,8 @@ import {
 } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
+import { demoEmulatorProject } from "./emulator";
+
 function normalizePrivateKey(raw: string): string {
   let key = raw.trim();
 
@@ -56,6 +58,9 @@ function getAdminApp(): App {
   if (existing.length > 0) {
     return existing[0]!;
   }
+
+  const projectId = demoEmulatorProject();
+  if (projectId) return initializeApp({ projectId });
 
   return initializeApp({
     credential: cert(getServiceAccount()),
