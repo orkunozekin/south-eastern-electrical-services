@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { bookingCalendarWeeks } from "../lib/booking/slots";
 import { firstCalendarSelection } from "../lib/booking/calendar-selection";
 const now = new Date("2026-10-05T08:00Z");
 const calendar = { timezone: "UTC", bookingWindowDays: 30 };
@@ -22,4 +23,13 @@ describe("loaded calendar selection", () => {
       weekIndex: 0,
     });
   });
+});
+
+it("preserves the server's first week after client midnight", () => {
+  const weeks = bookingCalendarWeeks(calendar, new Date("2026-10-05T23:59Z"));
+  const loaded = { ...calendar, dates: ["2026-10-05"], weeks };
+  expect(firstCalendarSelection(loaded, new Date("2026-10-06T00:01Z"))).toEqual(
+    { selectedDate: "2026-10-05", weekIndex: 0 },
+  );
+  expect(loaded.weeks[0]).toContain("2026-10-05");
 });

@@ -56,15 +56,18 @@ export function BookingWizard({
   timezone: initialTimezone,
   configured,
 }: BookingWizardProps) {
-  const [calendar, setCalendar] = useState({
+  const [calendar, setCalendar] = useState(() => ({
     dates: initialDates,
     timezone: initialTimezone,
     bookingWindowDays: 14,
-  });
+    weeks: bookingCalendarWeeks({
+      timezone: initialTimezone,
+      bookingWindowDays: 14,
+    }),
+  }));
   const [calendarLoaded, setCalendarLoaded] = useState(!configured);
-  const { dates, timezone, bookingWindowDays } = calendar;
+  const { dates, timezone, bookingWindowDays, weeks } = calendar;
   const [weekIndex, setWeekIndex] = useState(0);
-  const weeks = bookingCalendarWeeks({ timezone, bookingWindowDays });
   const pagedCalendar = bookingWindowDays > 21;
   const visibleDates = pagedCalendar
     ? dates.filter((date) => weeks[weekIndex]?.includes(date))
@@ -98,6 +101,7 @@ export function BookingWizard({
           dates: result.dates,
           timezone: result.timezone,
           bookingWindowDays: result.bookingWindowDays,
+          weeks: result.weeks,
         });
         const selection = firstCalendarSelection(result);
         setSelectedDate(selection.selectedDate);

@@ -44,3 +44,17 @@
 - **Gap:** A fetched calendar selected its first offered date without updating the displayed week, and client guidance still assumed a fixed booking window.
 - **Going forward:** Apply date selection and its containing page together after calendar loads. Cover empty initial weeks and empty calendars, and update vacation guidance whenever booking horizons become configurable.
 - **Pointers:** `components/booking-wizard.tsx`, `lib/booking/calendar-selection.ts`, `docs/admin-guide.md`
+
+### 2026-10-03 — Preserve cancellation audits across reset retries
+
+- **Source:** PR #18 · Greptile
+- **Gap:** A failed notice changes a booking to cancelled, so a retry that checks only confirmed bookings can delete the unresolved audit record.
+- **Going forward:** Check all cancelled records before a notifying reset deletes anything, including past bookings. Keep stored notice outcomes and recipient fallbacks intact.
+- **Pointers:** `scripts/clear-bookings.ts`, `lib/booking/reset-notices.ts`, `lib/booking/cancellation.ts`
+
+### 2026-10-03 — Freeze loaded calendar weeks
+
+- **Source:** PR #18 · Macroscope
+- **Gap:** Recomputing weeks from the client clock can hide server-offered dates when business midnight passes.
+- **Going forward:** Generate dates and week groups from the same server instant and retain both in the loaded calendar state.
+- **Pointers:** `app/actions/booking.ts`, `components/booking-wizard.tsx`
