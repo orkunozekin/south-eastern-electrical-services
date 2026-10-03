@@ -4,6 +4,7 @@ export {
   createBooking,
   deleteAvailabilityOverride,
   getAvailabilityOverride,
+  getAvailabilityOverrideSnapshot,
   getBooking,
   getBookingSettings,
   findConflictingBookings,

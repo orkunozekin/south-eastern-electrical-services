@@ -79,3 +79,10 @@
 - **Gap:** Spreading action input persisted unsupported hours, and conflict checks loaded overrides only for an appointment's start date.
 - **Going forward:** Build action writes from explicitly allowed fields. Query intersecting intervals and load every business-local date touched by legacy appointments, using an exclusive end boundary.
 - **Pointers:** `app/actions/admin.ts`, `lib/booking/repository.ts`, `lib/booking/slots.ts`
+
+### 2026-10-03 — Guard both sides of an override save
+
+- **Source:** PR #19 · Greptile
+- **Gap:** Checking the newly saved version protected later cancellations, but not the baseline read before another admin's intervening edit.
+- **Going forward:** Read the baseline and its version together, then condition the save on that version (or document absence). Continue checking the resulting version during cancellation.
+- **Pointers:** `getAvailabilityOverrideSnapshot`, `saveAvailabilityOverride`, `app/actions/admin.ts`

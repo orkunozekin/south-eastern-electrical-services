@@ -421,6 +421,39 @@ describe.skipIf(!enabled)(
       expect(result.results.map((b) => b.id)).toEqual([booking.id]);
       expect((await repo.getBooking(booking.id))?.status).toBe("cancelled");
     });
+    it.each(["missing", "existing"])(
+      "rejects a stale %s override baseline without cancelling",
+      async (kind) => {
+        const booking = await repo.createBooking(input("09:00"));
+        if (kind === "existing")
+          await repo.saveAvailabilityOverride({
+            date: tomorrow,
+            closed: false,
+          });
+        const snapshot = await repo.getAvailabilityOverrideSnapshot(tomorrow);
+        await repo.saveAvailabilityOverride({ date: tomorrow, closed: true });
+        await expect(
+          repo.saveAvailabilityOverride(
+            { date: tomorrow, closed: true },
+            { version: snapshot.version },
+          ),
+        ).rejects.toMatchObject({ code: "VALIDATION" });
+        expect((await repo.getBooking(booking.id))?.status).toBe("confirmed");
+      },
+    );
+    it("conditionally saves an unchanged override and returns the cancellation guard version", async () => {
+      await repo.saveAvailabilityOverride({ date: tomorrow, closed: false });
+      const snapshot = await repo.getAvailabilityOverrideSnapshot(tomorrow);
+      const version = await repo.saveAvailabilityOverride(
+        { date: tomorrow, closed: true },
+        { version: snapshot.version },
+      );
+      expect(
+        (await repo.getAvailabilityOverrideSnapshot(tomorrow)).version?.isEqual(
+          version,
+        ),
+      ).toBe(true);
+    });
     it("guards every admin preview and mutation and rejects invalid blocked starts", async () => {
       const result = await actions.previewOverrideAction({
         date: tomorrow,

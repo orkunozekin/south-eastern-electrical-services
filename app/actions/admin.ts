@@ -20,6 +20,7 @@ import {
   deleteAvailabilityOverride,
   findConflictingBookings,
   getAvailabilityOverride,
+  getAvailabilityOverrideSnapshot,
   getBookingSettings,
   listAvailabilityOverrides,
   listBookings,
@@ -276,12 +277,16 @@ export async function getAdminAvailabilityAction(): Promise<
 async function proposedOverride(
   input: OverrideInput,
   settings: BookingSettings,
+  savedOverride?: AvailabilityOverride | null,
 ): Promise<AvailabilityOverride> {
   if (!input || !isValidDateString(input.date))
     throw new BookingError("Invalid date.", "INVALID_DATE");
   if (typeof input.closed !== "boolean" || !Array.isArray(input.blockedSlots))
     throw new BookingError("Invalid override.", "VALIDATION");
-  const saved = await getAvailabilityOverride(input.date);
+  const saved =
+    savedOverride === undefined
+      ? await getAvailabilityOverride(input.date)
+      : savedOverride;
   const proposal = {
     ...saved,
     date: input.date,
@@ -371,9 +376,12 @@ export async function saveOverrideAction(
   let saved = false;
   try {
     const settings = await getBookingSettings();
-    const previous = await getAvailabilityOverride(input.date);
-    const proposal = await proposedOverride(input, settings);
-    const version = await saveAvailabilityOverride(proposal);
+    const snapshot = await getAvailabilityOverrideSnapshot(input.date);
+    const previous = snapshot.override;
+    const proposal = await proposedOverride(input, settings, previous);
+    const version = await saveAvailabilityOverride(proposal, {
+      version: snapshot.version,
+    });
     saved = true;
     // Recompute after the override is saved: bookings committed before this save
     // are included, while in-flight booking transactions re-read the override.

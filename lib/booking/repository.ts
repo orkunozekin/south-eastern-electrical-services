@@ -263,23 +263,31 @@ export async function saveSettingsWithConflicts(
   });
 }
 
-export async function getAvailabilityOverride(
-  date: string,
-): Promise<AvailabilityOverride | null> {
-  if (!isValidDateString(date)) {
+export async function getAvailabilityOverrideSnapshot(date: string): Promise<{
+  override: AvailabilityOverride | null;
+  version: Timestamp | null;
+}> {
+  if (!isValidDateString(date))
     throw new BookingError(`Invalid date: ${date}`, "INVALID_DATE");
-  }
-
   const snap = await getAdminDb()
     .collection(COLLECTIONS.availabilityOverrides)
     .doc(date)
     .get();
+  return {
+    override: overrideFromData(date, snap.data()),
+    version: snap.updateTime ?? null,
+  };
+}
 
-  return overrideFromData(date, snap.data());
+export async function getAvailabilityOverride(
+  date: string,
+): Promise<AvailabilityOverride | null> {
+  return (await getAvailabilityOverrideSnapshot(date)).override;
 }
 
 export async function saveAvailabilityOverride(
   override: AvailabilityOverride,
+  expected?: { version: Timestamp | null },
 ): Promise<Timestamp> {
   if (!isValidDateString(override.date)) {
     throw new BookingError(`Invalid date: ${override.date}`, "INVALID_DATE");
@@ -297,11 +305,30 @@ export async function saveAvailabilityOverride(
     payload.blockedSlots = override.blockedSlots;
   }
 
-  const result = await getAdminDb()
+  const ref = getAdminDb()
     .collection(COLLECTIONS.availabilityOverrides)
-    .doc(override.date)
-    .set(payload, { merge: true });
-  return result.writeTime;
+    .doc(override.date);
+  try {
+    const result = expected
+      ? expected.version
+        ? await ref.update(payload, { lastUpdateTime: expected.version })
+        : await ref.create(payload)
+      : await ref.set(payload, { merge: true });
+    return result.writeTime;
+  } catch (error) {
+    if (
+      expected &&
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      [5, 6, 9].includes(Number(error.code))
+    )
+      throw new BookingError(
+        "Availability changed while saving. Refresh and review the affected bookings.",
+        "VALIDATION",
+      );
+    throw error;
+  }
 }
 
 export async function deleteAvailabilityOverride(date: string): Promise<void> {
