@@ -1,6 +1,10 @@
 "use server";
 
-import { getBookableDateStrings, isValidDateString } from "@/lib/booking";
+import {
+  bookingCalendarWeeks,
+  getBookableDateStrings,
+  isValidDateString,
+} from "@/lib/booking";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/config";
 import { sendBookingConfirmation, sendBookingNotification } from "@/lib/plunk";
 import { formatWithShortZone } from "@/lib/timezone";
@@ -59,7 +63,13 @@ async function loadBookingServer() {
 }
 
 export async function fetchBookingCalendarAction(): Promise<
-  | { ok: true; timezone: string; dates: string[]; bookingWindowDays: number }
+  | {
+      ok: true;
+      timezone: string;
+      dates: string[];
+      bookingWindowDays: number;
+      weeks: string[][];
+    }
   | { ok: false; error: string }
 > {
   if (!isFirebaseAdminConfigured()) {
@@ -71,13 +81,16 @@ export async function fetchBookingCalendarAction(): Promise<
       await loadBookingServer();
 
     const settings = await getBookingSettings();
-    const candidates = getBookableDateStrings(settings);
+    const now = new Date();
+    const candidates = getBookableDateStrings(settings, undefined, now);
+    const weeks = bookingCalendarWeeks(settings, now);
     if (candidates.length === 0) {
       return {
         ok: true,
         timezone: settings.timezone,
         dates: [],
         bookingWindowDays: settings.bookingWindowDays,
+        weeks,
       };
     }
 
@@ -93,6 +106,7 @@ export async function fetchBookingCalendarAction(): Promise<
       ok: true,
       timezone: settings.timezone,
       bookingWindowDays: settings.bookingWindowDays,
+      weeks,
       dates: candidates.filter((date) => !closed.has(date)),
     };
   } catch (error) {

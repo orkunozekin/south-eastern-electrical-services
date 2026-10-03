@@ -59,3 +59,9 @@ node --env-file=.env.local --import tsx scripts/clear-bookings.ts
 GitHub Actions runs **Unit tests** and **Code quality** on every pull request, on pushes to `main`, and for merge queues. Unit tests run without production credentials; the separate opt-in Firestore emulator suite is excluded. Any unit test failure fails the check.
 
 To enforce passing tests before merge, configure a rule for `main` that requires the **Unit tests** status check, requires the branch to be up to date, and does not allow bypasses. Branch protection for a private personal repository requires GitHub Pro. Until that is enabled, these checks report failures but GitHub cannot enforce them as merge requirements.
+
+## Booking overlap index rollout
+
+Before deploying PR #16, deploy `firestore.indexes.json` to the intended Firebase project using `firebase deploy --only firestore:indexes --project <project-id>`, then wait until the bookings index is ready. It covers `status`, `endsAt`, and `startsAt` for bounded overlap queries. Verify the project explicitly; the index has not been deployed to production by this change. The local emulator does not enforce composite-index availability.
+
+A reset with `--yes --notify` stops if any cancelled booking has an unresolved customer notice, including records from earlier attempts. Review those records and contact affected customers before deciding how to proceed; retrying must not silently erase the audit. Cancellation reschedule links use `SITE_URL`, falling back to `VERCEL_PROJECT_PRODUCTION_URL` when it is unset.

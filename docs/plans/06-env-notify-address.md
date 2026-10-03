@@ -95,4 +95,4 @@ developer's address to the client's happens on day one.
 
 Settings recipients replace the bootstrap env list, at least one is required, and the masked bootstrap notice is returned only to authenticated Settings. Weekly-hours saves write only weeklyHours, so they cannot overwrite a newer recipient list. Unit tests use mocked delivery to verify recipients and missing configuration. Real delivery to client inboxes remains a rollout check.
 
-Verified locally: 44 unit tests and 12 guarded Firestore emulator tests, TypeScript, lint, formatting, and production build. No production settings, bookings, or emails were changed. Original manual checklists above remain unchecked where real provider/client testing has not been performed.
+Verified for this PR: seven unit tests, TypeScript, lint, and formatting. Save-path tests reject empty recipient lists and preserve newer recipients during weekly-hours saves. No production settings, bookings, or emails were changed. Real delivery and UI checks above remain rollout checks.

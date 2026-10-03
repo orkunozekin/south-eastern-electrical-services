@@ -326,4 +326,4 @@ production project without the owner's OK.
 
 Cancellation, notices, admin UI, guarded reset scripts, and invite UID backfill tooling are implemented. Invite UID and original organizer email are saved transactionally. Repeated cancellation never resends; missing/failed notice metadata is shown explicitly. Configure SITE_URL and a verified sender before rollout. The production backfill was not run; confirm the original sender and run it before changing sender domain. Actual calendar behaviour in Gmail, Outlook, and Apple remains a preview-deployment check.
 
-Verified locally: 48 unit tests and 12 guarded Firestore emulator tests, TypeScript, lint, formatting, and production build. No production settings, bookings, or emails were changed. Original manual checklists above remain unchecked where real provider/client testing has not been performed.
+Verified locally: 44 unit tests and 12 guarded Firestore emulator tests, TypeScript, lint, formatting, and production build. No production settings, bookings, or emails were changed. Original manual checklists above remain unchecked where real provider/client testing has not been performed.

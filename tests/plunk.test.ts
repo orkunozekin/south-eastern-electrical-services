@@ -94,6 +94,15 @@ describe("customer calendar cancellation", () => {
       "https://example.com/book?ref=cancelled",
     );
   });
+  it("falls back to the Vercel production hostname when SITE_URL is empty", () => {
+    vi.stubEnv("SITE_URL", "");
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "production.example.com");
+    expect(cancellationRescheduleUrl()).toBe(
+      "https://production.example.com/book?ref=cancelled",
+    );
+    vi.stubEnv("SITE_URL", "javascript:alert(1)");
+    expect(cancellationRescheduleUrl()).toBeNull();
+  });
   it("keeps request alarms and removes cancel alarms", () => {
     const input = {
       uid: "test",

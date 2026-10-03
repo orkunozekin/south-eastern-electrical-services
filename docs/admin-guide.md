@@ -347,9 +347,17 @@ A shorter duration offers more, shorter times per day. A longer duration offers 
 
 Review **blocked slots** in date overrides after changing the grid. Blocked start times must match a real slot when saving an override.
 
+### Minimum booking notice and booking window
+
+Choose **Minimum booking notice** in Settings to prevent last-minute bookings, from no minimum to 24 hours using the provided choices. Existing bookings stay confirmed.
+
+Use the booking-window quick picks or enter a custom value from **1 to 90 days**. The displayed end date includes today and counts closed days. Shrinking the window keeps existing later appointments; expanding it makes more dates available, so review holiday and vacation overrides through the new end date.
+
 ### 6.3 Notify emails
 
 The email address(es) that receive a message whenever a customer books.
+
+At least one address is required to save Settings. Once you save an address, only the saved list receives business notifications. Until then, notifications use the setup address shown masked on the Settings page.
 
 - Put **one email address per line** (commas also work).
 - You can list as many addresses as you like, e.g. the owner and the office.
@@ -373,6 +381,8 @@ For windows over 21 days, the public calendar shows one week at a time with **Pr
 ---
 
 ## 7. Booking notification emails
+
+**First step:** add at least one business address in **Settings → Notify emails** and save. Until you do, notifications use the setup address shown masked on the Settings page.
 
 When a customer books, everyone on your **Notify emails** list is sent an
 email.

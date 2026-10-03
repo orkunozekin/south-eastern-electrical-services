@@ -6,6 +6,7 @@
  */
 import { getAdminDb } from "../lib/firebase/admin";
 import { listBookings } from "../lib/booking/repository";
+import { assertResetNoticesResolved } from "../lib/booking/reset-notices";
 import { cancelAndNotify } from "../lib/booking/cancellation";
 
 async function main() {
@@ -26,6 +27,7 @@ async function main() {
     );
   } else {
     if (args.has("--notify")) {
+      assertResetNoticesResolved(await listBookings({ status: "cancelled" }));
       for (const booking of upcoming) {
         const result = await cancelAndNotify(booking.id, {
           notifyCustomer: true,

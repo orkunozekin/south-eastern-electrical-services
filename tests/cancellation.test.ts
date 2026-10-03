@@ -8,6 +8,7 @@ vi.mock("../lib/booking/repository", () => ({
 vi.mock("../lib/plunk", () => ({
   cancellationRescheduleUrl: vi.fn(),
   isPlunkConfigured: vi.fn(),
+  resolveRecipients: vi.fn(),
   sendCustomerCancellation: vi.fn(),
 }));
 import {
@@ -18,6 +19,7 @@ import {
 import {
   cancellationRescheduleUrl,
   isPlunkConfigured,
+  resolveRecipients,
   sendCustomerCancellation,
 } from "../lib/plunk";
 import { cancelAndNotify } from "../lib/booking/cancellation";
@@ -46,6 +48,9 @@ beforeEach(() => {
     minNoticeMinutes: 0,
     bookingWindowDays: 14,
   });
+  vi.mocked(resolveRecipients).mockImplementation((emails) =>
+    emails?.length ? emails : ["bootstrap@example.com"],
+  );
   vi.mocked(isPlunkConfigured).mockReturnValue(true);
   vi.mocked(cancellationRescheduleUrl).mockReturnValue(
     "https://example.com/book?ref=cancelled",
@@ -65,18 +70,30 @@ describe("cancel then notify", () => {
       }),
     );
   });
-  it("skips when no customer email exists", async () => {
-    vi.mocked(cancelBooking).mockResolvedValue({
-      booking: { ...booking, email: undefined },
-      changed: true,
+  it.each([true, false])(
+    "reports no email even when notify is %s",
+    async (notifyCustomer) => {
+      vi.mocked(cancelBooking).mockResolvedValue({
+        booking: { ...booking, email: undefined },
+        changed: true,
+      });
+      expect(await cancelAndNotify("test", { notifyCustomer })).toMatchObject({
+        notice: "skipped",
+        noticeReason: expect.stringContaining("No email"),
+      });
+      expect(sendCustomerCancellation).not.toHaveBeenCalled();
+    },
+  );
+  it("uses the bootstrap reply address when saved recipients are empty", async () => {
+    const settings = await getBookingSettings();
+    vi.mocked(getBookingSettings).mockResolvedValue({
+      ...settings,
+      notifyEmails: [],
     });
-    expect(
-      await cancelAndNotify("test", { notifyCustomer: true }),
-    ).toMatchObject({
-      notice: "skipped",
-      noticeReason: expect.stringContaining("No email"),
-    });
-    expect(sendCustomerCancellation).not.toHaveBeenCalled();
+    await cancelAndNotify("test", { notifyCustomer: true });
+    expect(sendCustomerCancellation).toHaveBeenCalledWith(
+      expect.objectContaining({ replyTo: "bootstrap@example.com" }),
+    );
   });
   it("skips when the admin opts out or booking is past", async () => {
     expect(
@@ -98,7 +115,11 @@ describe("cancel then notify", () => {
     });
     expect(
       await cancelAndNotify("test", { notifyCustomer: true }),
-    ).toMatchObject({ changed: false, notice: "sent" });
+    ).toMatchObject({
+      changed: false,
+      notice: "sent",
+      noticeReason: undefined,
+    });
     expect(sendCustomerCancellation).not.toHaveBeenCalled();
   });
   it("reports pending rather than claiming delivery after an interrupted cancellation", async () => {

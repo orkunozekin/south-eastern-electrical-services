@@ -6,6 +6,7 @@ import {
 import {
   cancellationRescheduleUrl,
   isPlunkConfigured,
+  resolveRecipients,
   sendCustomerCancellation,
 } from "@/lib/plunk";
 import { formatWithShortZone } from "@/lib/timezone";
@@ -30,15 +31,17 @@ export async function cancelAndNotify(
       notice: booking.cancelNotice ?? "pending",
       noticeReason:
         booking.cancelNoticeReason ??
-        "Notification result pending. Check before contacting the customer.",
+        (booking.cancelNotice
+          ? undefined
+          : "Notification result pending. Check before contacting the customer."),
     };
   let notice: "sent" | "failed" | "skipped" = "skipped";
   let noticeReason: string | undefined;
   const rescheduleUrl = cancellationRescheduleUrl();
-  if (!options.notifyCustomer)
-    noticeReason = "Admin chose not to notify. Please call the customer.";
-  else if (!booking.email)
+  if (!booking.email)
     noticeReason = "No email on file. Please call the customer.";
+  else if (!options.notifyCustomer)
+    noticeReason = "Admin chose not to notify. Please call the customer.";
   else if (booking.startsAt <= new Date())
     noticeReason = "Booking time has passed. Please call the customer.";
   else if (!isPlunkConfigured())
@@ -59,7 +62,7 @@ export async function cancelAndNotify(
         message: options.message?.trim(),
         rescheduleUrl,
         businessPhone: process.env.BUSINESS_PHONE,
-        replyTo: settings.notifyEmails[0],
+        replyTo: resolveRecipients(settings.notifyEmails)[0],
       });
       if (notice === "skipped")
         noticeReason = "Email is not configured. Please call the customer.";
