@@ -377,7 +377,7 @@ export async function saveOverrideAction(
     const settings = await getBookingSettings();
     const previous = await getAvailabilityOverride(input.date);
     const proposal = await proposedOverride(input, settings);
-    await saveAvailabilityOverride(proposal);
+    const version = await saveAvailabilityOverride(proposal);
     saved = true;
     // Recompute after the override is saved: bookings committed before this save
     // are included, while in-flight booking transactions re-read the override.
@@ -397,6 +397,7 @@ export async function saveOverrideAction(
             result: await cancelAndNotify(booking.id, {
               notifyCustomer: input.conflictResolution === "cancel-and-notify",
               message: input.message,
+              overrideGuard: { date: proposal.date, version },
             }),
           });
         } catch (error) {

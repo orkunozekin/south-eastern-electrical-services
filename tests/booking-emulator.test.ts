@@ -347,6 +347,36 @@ describe.skipIf(!enabled)(
         }
       },
     );
+    it.each(["replaced", "deleted"])(
+      "rejects cancellation for an override that was %s",
+      async (change) => {
+        const booking = await repo.createBooking(input("09:00"));
+        const version = await repo.saveAvailabilityOverride({
+          date: tomorrow,
+          closed: true,
+        });
+        if (change === "replaced")
+          await repo.saveAvailabilityOverride({
+            date: tomorrow,
+            closed: false,
+          });
+        else await repo.deleteAvailabilityOverride(tomorrow);
+        await expect(
+          repo.cancelBooking(booking.id, { date: tomorrow, version }),
+        ).rejects.toMatchObject({ code: "VALIDATION" });
+        expect((await repo.getBooking(booking.id))?.status).toBe("confirmed");
+      },
+    );
+    it("allows cancellation while the saved override version still matches", async () => {
+      const booking = await repo.createBooking(input("09:00"));
+      const version = await repo.saveAvailabilityOverride({
+        date: tomorrow,
+        closed: true,
+      });
+      expect(
+        await repo.cancelBooking(booking.id, { date: tomorrow, version }),
+      ).toMatchObject({ changed: true });
+    });
     it("guards every admin preview and mutation and rejects invalid blocked starts", async () => {
       const result = await actions.previewOverrideAction({
         date: tomorrow,

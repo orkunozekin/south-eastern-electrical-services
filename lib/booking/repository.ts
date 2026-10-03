@@ -289,7 +289,7 @@ export async function getAvailabilityOverride(
 
 export async function saveAvailabilityOverride(
   override: AvailabilityOverride,
-): Promise<void> {
+): Promise<Timestamp> {
   if (!isValidDateString(override.date)) {
     throw new BookingError(`Invalid date: ${override.date}`, "INVALID_DATE");
   }
@@ -306,10 +306,11 @@ export async function saveAvailabilityOverride(
     payload.blockedSlots = override.blockedSlots;
   }
 
-  await getAdminDb()
+  const result = await getAdminDb()
     .collection(COLLECTIONS.availabilityOverrides)
     .doc(override.date)
     .set(payload, { merge: true });
+  return result.writeTime;
 }
 
 export async function deleteAvailabilityOverride(date: string): Promise<void> {
@@ -556,8 +557,11 @@ export async function createBooking(
   });
 }
 
+export type OverrideCancellationGuard = { date: string; version: Timestamp };
+
 export async function cancelBooking(
   id: string,
+  overrideGuard?: OverrideCancellationGuard,
 ): Promise<{ booking: Booking; changed: boolean }> {
   const ref = getAdminDb().collection(COLLECTIONS.bookings).doc(id);
   return getAdminDb().runTransaction(async (tx) => {
@@ -565,6 +569,18 @@ export async function cancelBooking(
     if (!snap.exists) throw new BookingError("Booking not found.", "NOT_FOUND");
     const booking = bookingFromDoc(snap as QueryDocumentSnapshot);
     if (booking.status === "cancelled") return { booking, changed: false };
+    if (overrideGuard) {
+      const override = await tx.get(
+        getAdminDb()
+          .collection(COLLECTIONS.availabilityOverrides)
+          .doc(overrideGuard.date),
+      );
+      if (!override.updateTime?.isEqual(overrideGuard.version))
+        throw new BookingError(
+          "Availability changed while cancelling. Refresh and review the affected bookings.",
+          "VALIDATION",
+        );
+    }
     const cancelledAt = Timestamp.now();
     tx.update(ref, {
       status: "cancelled",

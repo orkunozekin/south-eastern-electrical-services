@@ -65,3 +65,10 @@
 - **Gap:** A separate conflict query and settings write can miss concurrent bookings. Override cancellation also included conflicts that existed before the edit, and grid coverage misclassified open-hour tails.
 - **Going forward:** Check conflicts and save settings in one transaction shared with booking creation. Cancel only bookings newly affected by an override. Evaluate existing appointments against open intervals and blocks, independently of the candidate slot grid.
 - **Pointers:** `lib/booking/repository.ts`, `lib/booking/slots.ts`, `app/actions/admin.ts`, `tests/booking-emulator.test.ts`
+
+### 2026-10-03 — Guard override cancellations against later edits
+
+- **Source:** PR #19 · Macroscope and Greptile
+- **Gap:** Cancellations used a proposal after another admin could replace it; obsolete blocked starts also disagreed with public availability.
+- **Going forward:** Check the persisted override version inside the cancellation transaction before sending notices. Apply only blocked intervals whose starts exist on the current grid.
+- **Pointers:** `lib/booking/repository.ts`, `lib/booking/cancellation.ts`, `lib/booking/slots.ts`

@@ -2,6 +2,7 @@ import {
   cancelBooking,
   getBookingSettings,
   recordCancelNotice,
+  type OverrideCancellationGuard,
 } from "./repository";
 import {
   cancellationRescheduleUrl,
@@ -21,9 +22,13 @@ export type CancellationResult = {
 /** Shared by authenticated actions and the explicitly opted-in reset script. */
 export async function cancelAndNotify(
   id: string,
-  options: { notifyCustomer: boolean; message?: string },
+  options: {
+    notifyCustomer: boolean;
+    message?: string;
+    overrideGuard?: OverrideCancellationGuard;
+  },
 ): Promise<CancellationResult> {
-  const { booking, changed } = await cancelBooking(id);
+  const { booking, changed } = await cancelBooking(id, options.overrideGuard);
   if (!changed)
     return {
       changed,

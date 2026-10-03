@@ -261,3 +261,19 @@ it("keeps a booking in the open tail after changing to 45-minute slots", () => {
     ),
   ).toBe(true);
 });
+
+it("ignores obsolete blocks after a duration change while retaining active blocks", () => {
+  const changed = { ...settings, slotDurationMinutes: 45 };
+  expect(
+    isBookingWithinAvailability(range("10:00", "10:30"), changed, {
+      date: "2026-10-05",
+      blockedSlots: ["09:30"],
+    }),
+  ).toBe(true);
+  expect(
+    isBookingWithinAvailability(range("10:00", "10:30"), changed, {
+      date: "2026-10-05",
+      blockedSlots: ["09:45"],
+    }),
+  ).toBe(false);
+});

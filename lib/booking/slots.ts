@@ -192,13 +192,16 @@ export function isBookingWithinAvailability(
       endsAt: fromZonedTime(`${date}T${range.end}:00`, settings.timezone),
     }))
     .sort((a, b) => +a.startsAt - +b.startsAt);
-  const blocked = (override?.blockedSlots ?? []).map((time) => {
-    const startsAt = fromZonedTime(`${date}T${time}:00`, settings.timezone);
-    return {
-      startsAt,
-      endsAt: addMinutes(startsAt, settings.slotDurationMinutes),
-    };
-  });
+  const blockedStarts = new Set(override?.blockedSlots ?? []);
+  const blocked = generateDaySlots(
+    date,
+    settings,
+    override ? { ...override, blockedSlots: [] } : null,
+  ).filter((slot) =>
+    blockedStarts.has(
+      formatInTimeZone(slot.startsAt, settings.timezone, "HH:mm"),
+    ),
+  );
   if (blocked.some((range) => rangesOverlap(booking, range))) return false;
   let coveredUntil = booking.startsAt;
   for (const range of ranges) {
