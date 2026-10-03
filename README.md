@@ -53,3 +53,9 @@ node --env-file=.env.local --import tsx scripts/clear-bookings.ts
 ```
 
 `--notify` opts into cancelling and emailing upcoming customers before deletion. The reset stops if an email or notice-recording result cannot be confirmed. Stop booking traffic before a reset. This is a destructive developer tool; clients should use the date override conflict panel to cancel a day’s callbacks.
+
+## Pull request checks
+
+GitHub Actions runs **Unit tests** and **Code quality** on every pull request, on pushes to `main`, and for merge queues. Unit tests run without production credentials; the separate opt-in Firestore emulator suite is excluded. Any unit test failure fails the check.
+
+To enforce passing tests before merge, configure a rule for `main` that requires the **Unit tests** status check, requires the branch to be up to date, and does not allow bypasses. Branch protection for a private personal repository requires GitHub Pro. Until that is enabled, these checks report failures but GitHub cannot enforce them as merge requirements.
