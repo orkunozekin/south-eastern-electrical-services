@@ -48,7 +48,7 @@ async function sendViaPlunk(options: {
 
 /** Ready to hit Plunk’s API (from address still needed for real delivery). */
 export function isPlunkConfigured(): boolean {
-  return Boolean(process.env.PLUNK_API_KEY && process.env.BOOKING_NOTIFY_EMAIL);
+  return Boolean(process.env.PLUNK_API_KEY && process.env.PLUNK_FROM_EMAIL);
 }
 
 function formatPhone(phone: string): string {
@@ -74,7 +74,7 @@ export function resolveRecipients(notifyEmails?: string[]): string[] {
     .map((e) => e.trim())
     .filter(Boolean);
 
-  return [...new Set([...fromSettings, ...fromEnv])];
+  return [...new Set(fromSettings.length ? fromSettings : fromEnv)];
 }
 
 function shouldLogToConsole(): boolean {
@@ -160,7 +160,7 @@ export async function sendBookingNotification(
     if (logToConsole) return "logged";
 
     console.warn(
-      "[plunk] Skipping booking notification. Need PLUNK_API_KEY, PLUNK_FROM_EMAIL (verified domain), and BOOKING_NOTIFY_EMAIL.",
+      "[plunk] Skipping booking notification. Need PLUNK_API_KEY, PLUNK_FROM_EMAIL (verified domain), and a notification address in Settings (or the bootstrap env address).",
     );
     return "skipped";
   }
@@ -369,4 +369,11 @@ export async function sendCustomerCancellation(
   });
 
   return "sent";
+}
+
+export function maskedBootstrapRecipients(): string[] {
+  return resolveRecipients([]).map((address) => {
+    const [local, domain] = address.split("@");
+    return `${local?.slice(0, 1) ?? ""}•••@${domain ?? ""}`;
+  });
 }

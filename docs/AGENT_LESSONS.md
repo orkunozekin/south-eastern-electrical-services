@@ -16,3 +16,10 @@
 - **Pointers:** `notifyCustomerOfCancel` in `app/actions/admin.ts`,
   `describeCancelResult` in `components/admin-bookings-list.tsx`,
   `docs/admin-guide.md` §4, email hint in `components/booking-wizard.tsx`
+
+### 2026-10-02 — Keep routing docs and save-path tests in each PR
+
+- **Source:** PR #15 · Greptile
+- **Gap:** Splitting the implementation left routing documentation and warning text describing the old recipient behavior, with only resolver tests in the recipient PR.
+- **Going forward:** Each independently mergeable PR must include matching configuration comments, client guidance, diagnostics, and tests of its save paths. Test stale settings snapshots so unrelated form saves cannot overwrite newer recipient choices.
+- **Pointers:** `lib/plunk.ts`, `app/actions/admin.ts`, `.env.example`, `docs/admin-guide.md`, `tests/notification-settings-save.test.ts`
