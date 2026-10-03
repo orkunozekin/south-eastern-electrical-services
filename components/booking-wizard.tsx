@@ -10,6 +10,7 @@ import {
   type BookingDto,
   type SlotDto,
 } from "@/app/actions/booking";
+import { firstCalendarSelection } from "@/lib/booking/calendar-selection";
 import { bookingCalendarWeeks } from "@/lib/booking";
 import {
   formatInZone,
@@ -98,11 +99,9 @@ export function BookingWizard({
           timezone: result.timezone,
           bookingWindowDays: result.bookingWindowDays,
         });
-        setSelectedDate((current) =>
-          current && result.dates.includes(current)
-            ? current
-            : (result.dates[0] ?? null),
-        );
+        const selection = firstCalendarSelection(result);
+        setSelectedDate(selection.selectedDate);
+        setWeekIndex(selection.weekIndex);
       }
       setCalendarLoaded(true);
     });

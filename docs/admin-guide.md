@@ -400,6 +400,12 @@ Also, any **blocked slots** you set up on date overrides need to match the new
 start times. Review your [current overrides](#53-current-overrides) after
 changing this.
 
+### Minimum booking notice and booking window
+
+Choose **Minimum booking notice** in Settings to prevent last-minute bookings, from no minimum to 24 hours using the provided choices. Existing bookings stay confirmed.
+
+Use the booking-window quick picks or enter a custom value from **1 to 90 days**. The displayed end date includes today and counts closed days. Shrinking the window keeps existing later appointments; expanding it makes more dates available, so review holiday and vacation overrides through the new end date.
+
 ### 6.3 Notify emails
 
 The email address(es) that receive a message whenever a customer books.
@@ -516,9 +522,7 @@ See [Cancelling a booking](#cancelling-a-booking).
 ### Stop taking bookings for a while (e.g. a vacation)
 
 Add a **Closed all day** override for each date you'll be away. Customers can
-only book about two weeks ahead, so you only need to close dates within the
-next two weeks for it to take effect straight away. Add further dates before
-they come within that two-week window.
+book within the window configured in **Settings**, which can be 1–90 days including today. Close every vacation date already inside that window, then add further overrides before those dates enter the window. Review vacation overrides whenever you extend the window.
 
 ### Booking on behalf of a customer
 
@@ -565,12 +569,9 @@ isn't confusing.
 
 ## 9. Good to know
 
-- **Customers can book up to about 2 weeks ahead.** The public calendar always
-  shows the days within the next 14 that are open in your weekly hours and
-  not closed by an override.
-- **There's no minimum notice.** A customer can book a slot that starts in a
-  few minutes, as long as it hasn't started yet. If you don't want last-minute
-  bookings on a busy day, block the remaining slots with a date override.
+- **The booking window is configurable.** Settings controls how many calendar days customers can book, including today (1–90 days, default 14). Closed days count toward the window. Longer windows have week navigation.
+- **Minimum notice is configurable.** Settings can exclude slots within the chosen notice period. The default is zero until you choose a value. Slots exactly on the notice boundary are also excluded. Existing bookings keep their original times.
+
 - **Customers can't cancel or change bookings themselves.** They'll need to
   contact you, and you can cancel from the Bookings page.
 - **Double-booking is prevented automatically.** If two customers try to grab
@@ -614,7 +615,6 @@ Get in touch for anything you can't do from the admin pages, including:
 - Password resets, adding or removing admin users
 - Opening on a day that's normally closed
 - Split hours on a regular basis (e.g. a daily lunch break)
-- Changing the booking window (currently about 2 weeks)
 - Changes to the email wording or sender name
 - Changes to the website's text, services list, photos, or pages
 - Any error message that keeps coming back

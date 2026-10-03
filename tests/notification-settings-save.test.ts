@@ -65,7 +65,6 @@ describe("notification settings saves", () => {
     expect(
       await saveAdminSettingsAction({
         ...DEFAULT_BOOKING_SETTINGS,
-        weeklyHours: {},
         notifyEmails: ["OWNER@example.com", "owner@example.com"],
       }),
     ).toEqual({ ok: true });
@@ -73,6 +72,7 @@ describe("notification settings saves", () => {
     expect(state.saved.weeklyHours).toEqual(
       DEFAULT_BOOKING_SETTINGS.weeklyHours,
     );
+    expect(state.writes.mock.calls[0][0]).not.toHaveProperty("weeklyHours");
   });
 
   it("preserves a newer recipient list when weekly hours save from a stale snapshot", async () => {

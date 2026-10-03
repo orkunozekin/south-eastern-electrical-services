@@ -5,7 +5,7 @@ import {
   type Query,
   type QueryDocumentSnapshot,
 } from "firebase-admin/firestore";
-import { addDays, subMinutes } from "date-fns";
+import { addDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 
 import { inviteIdentity } from "./invite-identity";
@@ -293,13 +293,20 @@ async function getBookedRangesForDate(
     .toISOString()
     .slice(0, 10);
   const dayEnd = fromZonedTime(`${nextDate}T00:00:00`, timezone);
-  return (
-    await listBookings({
-      from: subMinutes(dayStart, MAX_SLOT_MINUTES),
-      to: dayEnd,
-      status: "confirmed",
-    })
-  ).filter((booking) => booking.endsAt > dayStart);
+
+  const snap = await getAdminDb()
+    .collection(COLLECTIONS.bookings)
+    .where("status", "==", "confirmed")
+    .where("endsAt", ">", Timestamp.fromDate(dayStart))
+    .where("startsAt", "<", Timestamp.fromDate(dayEnd))
+    .orderBy("endsAt")
+    .orderBy("startsAt")
+    .get();
+  return snap.docs
+    .map(bookingFromDoc)
+    .filter(
+      (booking) => booking.status === "confirmed" && booking.startsAt < dayEnd,
+    );
 }
 
 export async function listAvailableSlots(date: string): Promise<Slot[]> {
@@ -376,7 +383,7 @@ export async function createBooking(
     const match = generateDaySlots(date, settings, override).find(
       (slot) => +slot.startsAt === +input.startsAt,
     );
-    if (!match)
+    if (!match || match.startsAt <= new Date())
       throw new BookingError(
         "That time slot is no longer available.",
         "SLOT_UNAVAILABLE",
@@ -389,12 +396,11 @@ export async function createBooking(
     const candidates = await tx.get(
       db
         .collection(COLLECTIONS.bookings)
-        .where(
-          "startsAt",
-          ">=",
-          Timestamp.fromDate(subMinutes(match.startsAt, MAX_SLOT_MINUTES)),
-        )
-        .where("startsAt", "<", Timestamp.fromDate(match.endsAt)),
+        .where("status", "==", "confirmed")
+        .where("endsAt", ">", Timestamp.fromDate(match.startsAt))
+        .where("startsAt", "<", Timestamp.fromDate(match.endsAt))
+        .orderBy("endsAt")
+        .orderBy("startsAt"),
     );
     const bookedRanges = candidates.docs
       .map(bookingFromDoc)
