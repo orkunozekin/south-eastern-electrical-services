@@ -84,7 +84,7 @@ export function SiteHeader() {
             href="/book"
             className="bg-amber text-navy-deep hover:bg-amber-hot px-4 py-2 text-base font-semibold tracking-wide transition"
           >
-            Book a call
+            Get started
           </Link>
         </nav>
 
@@ -161,7 +161,7 @@ export function SiteHeader() {
               open ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
             }`}
           >
-            Book a call
+            Book or get an estimate
           </Link>
         </nav>
       </div>

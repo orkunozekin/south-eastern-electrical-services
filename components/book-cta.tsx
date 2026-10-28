@@ -7,7 +7,7 @@ type BookCtaProps = {
 
 export function BookCta({
   heading = "Ready to talk through your project?",
-  body = "Pick a time that works. We’ll call you. No account required.",
+  body = "Tell us what you need. We can follow up by text and help coordinate the next step.",
 }: BookCtaProps) {
   return (
     <section className="bg-navy relative overflow-hidden px-5 py-20 md:px-8 md:py-28">
@@ -30,7 +30,7 @@ export function BookCta({
           href="/book"
           className="bg-amber text-navy-deep hover:bg-amber-hot mt-8 inline-flex px-6 py-3 text-base font-semibold tracking-wide transition"
         >
-          Book a callback
+          Book or get an estimate
         </Link>
       </div>
     </section>

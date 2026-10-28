@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Contact Southeastern Electrical Services or book a phone callback.",
+    "Contact Southeastern Electrical Services or request an appointment or estimate.",
 };
 
 export default function ContactPage() {
@@ -16,8 +16,7 @@ export default function ContactPage() {
             Contact
           </h1>
           <p className="text-mist/85 mt-4 max-w-xl text-lg">
-            Prefer a call on your schedule? Book a callback and we’ll reach out
-            at the time you pick.
+            Tell us what you need and we’ll help coordinate the next step.
           </p>
         </div>
       </section>
@@ -25,17 +24,17 @@ export default function ContactPage() {
       <section className="bg-paper px-5 py-16 md:px-8 md:py-24">
         <div className="mx-auto max-w-6xl">
           <h2 className="font-display text-navy text-3xl font-semibold tracking-tight uppercase">
-            Book a phone call
+            Start a request
           </h2>
           <p className="text-slate mt-4 max-w-lg text-lg leading-relaxed">
-            Choose a time slot, leave your name and number, and we’ll call you.
-            No account needed.
+            Share your name, mobile number, and what you need. We can follow up
+            by text and help with an appointment or estimate. No account needed.
           </p>
           <Link
             href="/book"
             className="bg-navy hover:bg-charcoal mt-8 inline-flex px-6 py-3 text-base font-semibold tracking-wide text-white transition"
           >
-            Open the calendar
+            Book or get an estimate
           </Link>
         </div>
       </section>
