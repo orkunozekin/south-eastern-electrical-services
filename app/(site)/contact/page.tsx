@@ -36,6 +36,16 @@ export default function ContactPage() {
           >
             Book or get an estimate
           </Link>
+          <p className="text-slate mt-5 text-sm leading-relaxed">
+            If the request button is unavailable, you can{" "}
+            <Link
+              href="/book/callback"
+              className="text-navy font-semibold underline underline-offset-4"
+            >
+              book a callback directly
+            </Link>
+            .
+          </p>
         </div>
       </section>
     </>

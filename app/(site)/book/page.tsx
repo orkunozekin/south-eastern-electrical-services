@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Book or get an estimate",
@@ -40,6 +41,18 @@ export default async function BookPage({
           <p className="text-mist/70 mt-4 text-base leading-relaxed">
             No account is required. Standard message and data rates may apply,
             and you can reply STOP to opt out.
+          </p>
+          <p className="text-mist/70 mt-6 border-t border-white/10 pt-6 text-sm leading-relaxed">
+            If the request button does not appear, you can still{" "}
+            <Link
+              href={
+                cancelled ? "/book/callback?ref=cancelled" : "/book/callback"
+              }
+              className="text-amber hover:text-amber-hot font-semibold underline underline-offset-4"
+            >
+              book a callback directly
+            </Link>
+            .
           </p>
         </div>
       </div>

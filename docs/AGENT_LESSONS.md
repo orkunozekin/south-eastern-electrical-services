@@ -93,3 +93,10 @@
 - **Gap:** Sanitized booking errors were logged only in the exception handler, leaving missing-credential early returns invisible.
 - **Going forward:** Check every failure exit when adding diagnostics, including configuration guards. Log the reason server-side without secret values and keep visitor responses sanitized.
 - **Pointers:** `app/actions/booking.ts`, `tests/booking-actions.test.ts`
+
+### 2026-10-28 — Keep a provider-independent contact path
+
+- **Source:** PR #23 · Greptile
+- **Gap:** Replacing the booking page with a third-party widget left visitors without a contact path when the widget script failed to load.
+- **Going forward:** Every provider-hosted contact or booking experience must include a visible fallback that works without that provider's client script.
+- **Pointers:** `app/(site)/book/page.tsx`, `app/(site)/book/callback/page.tsx`, `app/(site)/contact/page.tsx`
