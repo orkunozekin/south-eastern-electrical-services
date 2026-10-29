@@ -9,6 +9,15 @@ const nextConfig: NextConfig = {
     "/admin/settings": ["./docs/admin-guide.md"],
     "/admin/guide": ["./docs/admin-guide.md"],
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        pathname: "/**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

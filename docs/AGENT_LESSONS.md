@@ -93,3 +93,10 @@
 - **Gap:** Sanitized booking errors were logged only in the exception handler, leaving missing-credential early returns invisible.
 - **Going forward:** Check every failure exit when adding diagnostics, including configuration guards. Log the reason server-side without secret values and keep visitor responses sanitized.
 - **Pointers:** `app/actions/booking.ts`, `tests/booking-actions.test.ts`
+
+### 2026-10-28 — Check every image consumer before narrowing configuration
+
+- **Source:** PR #24 · Greptile
+- **Gap:** Replacing the home page's remote hero image led to removing the Unsplash allowlist while the About page still depended on it.
+- **Going forward:** Search all `next/image` consumers before narrowing `images.remotePatterns`, and keep any host still used elsewhere.
+- **Pointers:** `next.config.ts`, `app/(site)/about/page.tsx`
