@@ -4,8 +4,7 @@ import Link from "next/link";
 import { BookCta } from "@/components/book-cta";
 import { FEATURED_SERVICES, VALUES } from "@/lib/content";
 
-const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=2400&q=80";
+const HERO_IMAGE = "/home-hero-electrician.jpg";
 
 export default function HomePage() {
   return (
@@ -13,7 +12,7 @@ export default function HomePage() {
       <section className="bg-navy-deep relative flex min-h-[100svh] items-end overflow-hidden">
         <Image
           src={HERO_IMAGE}
-          alt="Electrician working on a circuit panel"
+          alt="Electrician inspecting a residential circuit panel"
           fill
           priority
           className="animate-hero-zoom object-cover object-center"
