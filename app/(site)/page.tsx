@@ -36,15 +36,15 @@ export default function HomePage() {
             <span className="text-amber">Services</span>
           </p>
           <p className="animate-hero-rise-delay text-mist/90 mt-6 max-w-md text-lg leading-relaxed md:text-xl">
-            Safe, reliable, and affordable electrical work. Start with a phone
-            call.
+            Safe, reliable, and affordable electrical work. Start with a quick
+            conversation.
           </p>
           <div className="animate-hero-rise-delay-2 mt-8 flex flex-wrap gap-4">
             <Link
               href="/book"
               className="bg-amber text-navy-deep hover:bg-amber-hot px-6 py-3 text-base font-semibold tracking-wide transition"
             >
-              Book a callback
+              Book or get an estimate
             </Link>
             <Link
               href="/services"
@@ -92,7 +92,7 @@ export default function HomePage() {
               Built on trust
             </h2>
             <p className="text-slate mt-4 text-lg leading-relaxed">
-              We schedule a phone call first so we understand the job before
+              We start with a conversation so we understand the job before
               anyone shows up. Service, safety, and integrity guide every
               project.
             </p>
