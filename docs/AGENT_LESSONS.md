@@ -100,3 +100,10 @@
 - **Gap:** Replacing the booking page with a third-party widget left visitors without a contact path when the widget script failed to load.
 - **Going forward:** Every provider-hosted contact or booking experience must include a visible fallback that works without that provider's client script.
 - **Pointers:** `app/(site)/book/page.tsx`, `app/(site)/book/callback/page.tsx`, `app/(site)/contact/page.tsx`
+
+### 2026-10-28 — Check every image consumer before narrowing configuration
+
+- **Source:** PR #24 · Greptile
+- **Gap:** Replacing the home page's remote hero image led to removing the Unsplash allowlist while the About page still depended on it.
+- **Going forward:** Search all `next/image` consumers before narrowing `images.remotePatterns`, and keep any host still used elsewhere.
+- **Pointers:** `next.config.ts`, `app/(site)/about/page.tsx`
