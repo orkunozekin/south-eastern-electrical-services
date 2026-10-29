@@ -82,9 +82,9 @@ export default function AboutPage() {
             How we work
           </h2>
           <p className="text-slate mt-4 max-w-2xl text-lg leading-relaxed">
-            Every job starts with a scheduled phone call. We learn what you
-            need, answer questions, and outline next steps before we set foot on
-            site, so you know what to expect.
+            Every job starts with a conversation. We learn what you need, answer
+            questions, and outline next steps before we set foot on site, so you
+            know what to expect.
           </p>
         </div>
       </section>
