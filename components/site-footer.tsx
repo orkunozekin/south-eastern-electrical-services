@@ -42,8 +42,23 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="text-mist/50 border-t border-white/10 px-5 py-4 text-center text-xs md:px-8">
-        © {new Date().getFullYear()} Southeastern Electrical Services. All
-        rights reserved.
+        <p>
+          © {new Date().getFullYear()} Southeastern Electrical Services. All
+          rights reserved.
+        </p>
+        {/* Ownership credit for Studio Artemis LLC. */}
+        <p className="mt-1">
+          © {new Date().getFullYear()}{" "}
+          <a
+            href="https://studioartemis.io"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="decoration-mist/30 focus-visible:ring-amber rounded-sm underline underline-offset-4 outline-none hover:text-white hover:decoration-white focus-visible:ring-2"
+          >
+            Studio Artemis LLC
+          </a>
+          . All rights reserved.
+        </p>
       </div>
     </footer>
   );
